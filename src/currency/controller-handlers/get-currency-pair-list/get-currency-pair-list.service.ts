@@ -1,135 +1,107 @@
-import { AuthParser, Db, DbCon, Headers, Query, Response, ServiceResult } from "./interface";
+import { Headers, Query, Response, In_Data, ResTuple } from "./interface";
 import { clamp } from "lodash";
-import { TIMESTAMP_NULL } from "./constants";
-import { GetCurrencyPairListDb } from "./get-currency-pair-list.db";
+import { GetCurrencyPairListDbService } from "./get-currency-pair-list.db";
+import { Injectable } from "nist-core/injectables";
+import { AuthParserService } from "../../../utils/auth-manager.service";
 
 const DEFAULT_BASE: string = "USD";
 const DEFAULT_MARKET = "parallel";
-const DEFAULT_FILTER = "all";
-const DEFAULT_PAGE_OFFSET = 0;
-const PAGE_COUNT_MAX = 50;
-const MAX_DATE_TIMESTAMP_DIFF = 48 * 60 * 60 * 1000; // 48 hours diff
+const MIN_INTERVAL = 1 * 24 * 60 * 60; // 1 day interval
+const MAX_INTERVAL = 365 * 24 * 60 * 60; // 1 YEAR interval
+const DEFAULT_STEPS = 1;
+const MAX_STEPS = 50;
+const MIN_PAGE_OFFSET = 0;
+const MAX_PAGE_OFFSET = 300;
+const MIN_PAGE_LIMIT = 1;
+const MAX_PAGE_LIMIT = 300;
 
-class GetCurrencyPairListService {
-  private headers!: Headers;
-  private query!: Query;
-  private db: Db;
-  constructor(private authParser: AuthParser, dbCon: DbCon) {
-    this.db = new GetCurrencyPairListDb(dbCon);
-  }
+@Injectable()
+export class Service {
+  constructor(
+    private dbService: GetCurrencyPairListDbService,
+    private authParser: AuthParserService
+  ) {}
 
-  async handle(headers: Headers, query: Query): Promise<[number, Response["data"]]> {
-    this.setHeadersAndQueryCtx(headers, query);
-    const { userId } = this.authParser.parseFromHeader(this.headers);
-    const favourites = userId ? await this.getFavourites(userId) : [];
-    const results = this.db.getNamesAndRates({
-      userId,
-      base: this.getBase(),
-      filter: this.getFilter(),
-      dateFrom: this.getDateFrom(),
-      dateTo: this.getDateTo(),
-      date: this.getDate(),
-      market: this.getMarket(),
-      pageOffset: this.getPageOffset(),
-      pageCount: this.getPageCount(),
-    });
+  async handle(headers: Headers, query: Query): Promise<ResTuple> {
+    const results = await this.getResults(query);
+
     return [
       200,
+      "",
       {
         currency_pairs: {
-          base: this.getBase(),
-          ...(await this.getResult()),
+          base: this.getBase(query),
+          favourites: (await this.getFavourites(headers)) ?? [],
+          data: results,
         },
         pagination: {
-          total: await this.db.getTotal(),
-          skipped: this.getPageOffset(),
-          page_count: this.getPageCount(),
+          page_count: this.getLimit(query),
+          skipped: this.getOffset(query),
         },
       },
     ];
   }
 
-  private async getFavourites(userId: string) {
-    return await this.db.getFavourites(userId);
+  private async getFavourites(headers: Headers) {
+    const { userId } = this.authParser.parseFromHeader(headers);
+    return userId ? await this.dbService.getFavourites(userId) : [];
   }
 
-  private async getResult(): Promise<ServiceResult> {
-    const payload = this.getDbPayload();
-    const DEFAULT: ServiceResult = {
-      data: [],
-      dates: [],
-    };
-
-    return this.isIncludeFavouriteAndAuthenticatedUser()
-      ? await this.db.getRateAtGivenTimeWithFavourite(payload)
-      : !this.shouldIncludeFavourite()
-      ? await this.db.getRateAtGivenTimeWithoutFavourite(payload)
-      : DEFAULT;
+  private async getResults(query: Query) {
+    return await this.dbService.getCurrenciesRatesFromMarket(
+      query.market || DEFAULT_MARKET,
+      this.getDataForDb(query)
+    );
   }
 
-  private setHeadersAndQueryCtx(headers: Headers, query: Query) {
-    this.headers = headers;
-    this.query = query;
+  private convertNumToTnt(float_num: number) {
+    return Math.round(float_num);
   }
 
-  private getUserId() {
-    const parsedAuthToken = this.authParser.parseFromHeader(this.headers);
-    return parsedAuthToken.userId;
-  }
-  private getBase() {
-    return this.query.base ?? DEFAULT_BASE;
+  private getCurrentTimestamp() {
+    const timestamp = new Date().getTime() / 1000;
+    return this.convertNumToTnt(timestamp);
   }
 
-  private getDateFrom() {
-    return this.query.date_from;
-  }
-
-  private getDateTo() {
-    const dateForm = this.getDateFrom();
-    return dateForm
-      ? clamp(this.query.date_to ?? 0, dateForm, dateForm + MAX_DATE_TIMESTAMP_DIFF)
-      : undefined;
-  }
-
-  private getDate() {
-    return this.query.date ?? TIMESTAMP_NULL;
-  }
-
-  private getMarket() {
-    return this.query.market ?? DEFAULT_MARKET;
-  }
-
-  private getFilter() {
-    return this.query.filter ?? DEFAULT_FILTER;
-  }
-
-  private shouldIncludeFavourite() {
-    return this.query.include_favourites;
-  }
-
-  private getPageOffset() {
-    return this.query.pagination_offset ?? DEFAULT_PAGE_OFFSET;
-  }
-
-  private getPageCount() {
-    return clamp(this.query.pagaintion_count ?? PAGE_COUNT_MAX, 0, PAGE_COUNT_MAX);
-  }
-
-  private isIncludeFavouriteAndAuthenticatedUser() {
-    return this.shouldIncludeFavourite() && this.getUserId();
-  }
-
-  private getDbPayload() {
+  private getDataForDb(query: Query): In_Data {
+    const interval = this.getInterval(query);
+    const steps = this.getSteps(query);
+    const from = this.getFrom(query);
     return {
-      userId: this.getUserId(),
-      base: this.getBase(),
-      filter: this.getFilter(),
-      dateFrom: this.getDateFrom(),
-      dateTo: this.getDateTo(),
-      date: this.getDate(),
-      market: this.getMarket(),
-      pageOffset: this.getPageOffset(),
-      pageCount: this.getPageCount(),
+      base: this.getBase(query),
+      interval,
+      from,
+      offset: this.getOffset(query),
+      limit: this.getLimit(query),
+      to: from + steps * interval,
     };
+  }
+
+  private getOffset(query: Query) {
+    const offset = this.convertNumToTnt(query.page_offset || MIN_PAGE_OFFSET);
+    return clamp(offset, MIN_PAGE_OFFSET, MAX_PAGE_OFFSET);
+  }
+
+  private getLimit(query: Query) {
+    const limit = this.convertNumToTnt(query.page_count || MIN_PAGE_LIMIT);
+    return clamp(limit, MIN_PAGE_LIMIT, MAX_PAGE_LIMIT);
+  }
+
+  private getSteps(query: Query) {
+    const steps = this.convertNumToTnt(query.steps || DEFAULT_STEPS);
+    return clamp(steps, -MAX_STEPS, MAX_STEPS);
+  }
+
+  private getFrom(query: Query) {
+    return query.from || this.getCurrentTimestamp();
+  }
+
+  private getBase(query: Query) {
+    return query.base || DEFAULT_BASE;
+  }
+
+  private getInterval(query: Query) {
+    const interval = this.convertNumToTnt(query.interval || MIN_INTERVAL);
+    return clamp(interval, MIN_INTERVAL, MAX_INTERVAL);
   }
 }

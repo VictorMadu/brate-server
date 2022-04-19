@@ -1,303 +1,217 @@
-import postgres from "postgres";
-import { blackRates, currencies, parallelRates, users } from "utils/postgres-db-types/erate";
-import { ParallelRates, BlackRates } from "utils/postgres-db-types/interfaces/erate.interface";
-import { TIMESTAMP_NULL } from "./constants";
-import { Data, DateFrom_Data, Date_Data, Db, DbCon, Payload } from "./interface";
+import { CurrencyPostgresDbService } from "../_utils/currency.db.service";
+import { Injectable } from "nist-core/injectables";
+import { PoolClient } from "pg";
+import {
+  blackRates,
+  currencies,
+  parallelRates,
+  users,
+} from "../../../utils/postgres-db-types/erate";
+import { Db_Querier, In_Data, Out_Data, Payload } from "./interface";
+import { PostgresHeplper } from "../../../utils/postgres-helper";
 
-const ONE_HOUR = 1 * 60 * 60;
+const t = "__t";
+const t1 = "__t1";
+const t2 = "__t2";
+const prev_time = "__prev_time";
 
 // TODO: All db result may result undefined or empty array
+// TODO: clean data
 
-export class GetCurrencyPairListDb implements Db {
-  psql: postgres.Sql<{}>;
+// TODO: Ensure listeners are called from minimal to top
+
+@Injectable()
+export class GetCurrencyPairListDbService implements Db_Querier {
+  psql!: PoolClient;
   payload!: Payload;
-  constructor(dbCon: DbCon) {
-    this.psql = dbCon.getPsql();
+  market!: "black" | "parallel";
+  inData!: In_Data;
+  constructor(private currencyDb: CurrencyPostgresDbService, private helper: PostgresHeplper) {}
+
+  private onReady() {
+    this.psql = this.currencyDb.getPsql();
   }
 
-  async getTotal(): Promise<number> {
-    const [{ total }] = await this.psql<{ total: number }[]>`
+  async getTotal(): Promise<number | undefined> {
+    const results = await this.psql.query<{ total: number }>(`
       SELECT COUNT(*) as total FROM ${currencies.$$NAME}
-    `;
-
-    return total;
+    `);
+    return this.helper.getFromFirstRow(results, "total");
   }
 
-  async getFavourites(userId: string): Promise<[string, string][]> {
-    const [result] = await this.psql<{ [users.favourite_currency_pairs]: [string, string][] }[]>`
+  async getFavourites(userId: string): Promise<[string, string][] | undefined> {
+    const colName = users.favourite_currency_pairs;
+    const result = await this.psql.query<{ [colName]: [string, string][] }>(`
       SELECT 
-        ${users.favourite_currency_pairs} 
+        ${colName} 
       FROM 
         ${users.$$NAME}
       WHERE
         ${users.user_id} = ${userId}
-    `;
-
-    return result[users.favourite_currency_pairs];
+    `);
+    return this.helper.getFromFirstRow(result, colName);
   }
 
-  async getNamesAndRates(payload: Payload): Promise<DateFrom_Data[] | Date_Data[] | undefined> {
-    this.setCtxPayload(payload);
-    return await this.createQuerier()?.get();
+  async getCurrenciesRatesFromMarket(
+    marketType: "black" | "parallel",
+    inData: In_Data
+  ): Promise<Out_Data> {
+    return await this.createQuerierFromMarketTypeAndInData(marketType, inData).get();
   }
 
-  private setCtxPayload(payload: Payload) {
-    this.payload = payload;
-  }
-
-  private createQuerier() {
-    const market = this.payload.market;
-    const lowerTimestamp = this.payload.dateFrom;
-    const highTimestamp = this.payload.dateTo as number;
-    const timestamp = this.payload.date;
-    const offset = this.payload.pageOffset;
-    const limit = this.payload.pageCount;
-    const base = this.payload.base;
-
-    if (market === "parallel" && lowerTimestamp)
-      return new Parallel_Market_Currency_Names_And_Rates_From_Timestamp_Range(this.psql, {
-        lowerTimestamp,
-        highTimestamp,
-        offset,
-        limit,
-      });
-    else if (market === "parallel")
-      return new Parallel_Market_Currency_Names_And_Rates_From_Timestamp(this.psql, {
-        timestamp,
-        offset,
-        limit,
-      });
-    else if (market === "black" && lowerTimestamp)
-      return new Black_Market_Currency_Names_And_Rate_From_Timestamp_Range(this.psql, {
-        lowerTimestamp,
-        highTimestamp,
-        offset,
-        limit,
-        base,
-      });
-    else if (market === "black")
-      return new Black_Market_Currency_Names_And_Rates_From_Timestamp(this.psql, {
-        timestamp,
-        offset,
-        limit,
-        base,
-      });
-
-    return;
+  private createQuerierFromMarketTypeAndInData(marketType: "black" | "parallel", inData: In_Data) {
+    if (marketType === "black") return new Black_Market(this.psql, inData);
+    return new Parallel_Market(this.psql, inData);
   }
 }
 
-class To_Postgres_Type_Transformer {
-  //  TODO: Check if it is valid timestamp number in the sanitizer
-  to_timestamptz(int: number) {
-    if (int === TIMESTAMP_NULL) return "NOW()";
-    return `to_timestamp(${int})::TIMESTAMPTZ`;
-  }
-}
+class Black_Market {
+  table = blackRates;
 
-class Parallel_Market_Table {
-  $name = parallelRates.$$NAME;
-  currency_id = parallelRates.currency_id;
-  rate = parallelRates.rate;
-  timestamp = parallelRates.time;
-}
-
-class Parallel_Market_Currency_Names_And_Rates_From_Timestamp {
-  t = new Parallel_Market_Table();
-  transformer = new To_Postgres_Type_Transformer();
-  inData_timestamptz: string;
-
-  constructor(
-    private psql: postgres.Sql<{}>,
-    private inData: { timestamp: number; offset: number; limit: number }
-  ) {
-    this.inData_timestamptz = this.transformer.to_timestamptz(this.inData.timestamp);
-  }
-  // TODO: Set all database coming in as dangerous for sanitizing before coming into the db stage
-  async get(): Promise<Data[]> {
-    return await this.psql<{ quota: string; curr_rate: number[]; prev_rate: number[] }[]>`
+  constructor(private psql: PoolClient, private inData: In_Data) {}
+  async get() {
+    const result = await this.psql.query<{ quota: string; timestamps: number[]; rates: number[] }>(`
       SELECT 
-        DISTINCT ON(${this.t.currency_id}) 
-          ${this.t.currency_id} as quota, 
-          ARRAY[${this.curr_rate()}] as curr_rate,
-          ARRAY[${this.prev_or_curr_rate_if_prev_null()}] as prev_rate
-      FROM 
-        ${this.t.$name}
+        ${t}.${this.table.quota} as quota,
+        array_agg(${t}.${this.table.time}) as timestamps,
+        array_agg(${t}.${this.table.rate}) as rates
+      FROM  (
+        SELECT 
+          ${this.table.quota} as ${this.table.quota},  
+          floor((EXTRACT(EPOCH FROM ${t1}.${this.table.time}) /${this.inData.interval})) *
+            ${this.inData.interval}  AS ${this.table.time},
+          AVG(${t1}.${this.table.rate}) as ${this.table.rate}
+        FROM 
+          ${this.table.$$NAME} AS ${t1}
+        LEFT JOIN LATERAL (
+          SELECT 
+            ${this.table.time} AS ${prev_time} 
+          FROM
+            ${this.table.$$NAME}
+          WHERE 
+            ${this.table.base} = ${t1}.${this.table.base} AND
+            ${this.table.seller_id} = ${t1}.${this.table.seller_id} AND
+            ${this.table.quota} = ${t1}.${this.table.quota} AND
+            ${this.table.time} < ${t1}.${this.table.time}
+          ORDER BY 
+            ${this.table.time} DESC
+          FETCH FIRST ROW ONLY
+        ) ${t2} ON TRUE
+      WHERE  
+        COALESCE (
+          EXTRACT(EPOCH FROM ${t2}.${prev_time}),
+          EXTRACT(EPOCH FROM ${t1}.${this.table.time})
+        ) >= ${this.inData.from}  
+          AND 
+        EXTRACT(EPOCH FROM ${t1}.${this.table.time}) <= ${this.inData.to} AND
+        ${this.table.base} = '${this.inData.base}'
+      GROUP BY 
+        ${this.table.quota}, 
+        floor((EXTRACT(EPOCH FROM ${t1}.${this.table.time}) /${this.inData.interval}))
+    ) AS ${t}
+    GROUP BY 
+      ${t}.${this.table.quota}
+    OFFSET ${this.inData.offset}
+    FETCH FIRST ${this.inData.limit} ROWS ONLY
+  `);
+
+    return result.rows;
+  }
+}
+class Parallel_Market {
+  table = parallelRates;
+
+  constructor(private psql: PoolClient, private inData: In_Data) {}
+  async get() {
+    console.log("parallel market");
+    console.log(this.table);
+    console.log(this.inData);
+
+    console.log(`
+    SELECT 
+    ${t}.${this.table.currency_id} as quota,
+    array_agg(${t}.${this.table.time}) as timestamps,
+    array_agg(${t}.${this.table.rate}) as rates
+  FROM  (
+    
+  SELECT 
+    ${this.table.currency_id} as ${this.table.currency_id},  
+    floor((EXTRACT(EPOCH FROM ${t1}.${this.table.time}) /${this.inData.interval})) *
+      ${this.inData.interval}  AS ${this.table.time},
+    AVG(${t1}.${this.table.rate}) as ${this.table.rate}
+  FROM 
+    ${this.table.$$NAME} AS ${t1}
+  LEFT JOIN LATERAL (
+      SELECT 
+        ${this.table.time} AS ${prev_time} 
+      FROM
+        ${this.table.$$NAME}
       WHERE 
-        ${this.inData_timestamptz} >= ${this.t.timestamp}
-      WINDOW w AS (
-          PARTITION BY ${this.t.currency_id}
-          ORDER BY ${this.inData_timestamptz} - ${this.t.timestamp}
-          RANGE BETWEEN 
-            UNBOUNDED PRECEDING AND 
-            UNBOUNDED FOLLOWING
-      )
+        ${this.table.currency_id} = ${t1}.${this.table.currency_id} AND
+        ${t1}.${this.table.time} > ${this.table.time}
+      ORDER BY 
+        ${this.table.time} DESC
+      FETCH FIRST ROW ONLY
+    ) ${t2} ON TRUE
+  WHERE  
+    COALESCE (
+      EXTRACT(EPOCH FROM ${t2}.${prev_time}),
+      EXTRACT(EPOCH FROM ${t1}.${this.table.time})
+    ) >= ${this.inData.from}  
+      AND 
+    EXTRACT(EPOCH FROM ${t1}.${this.table.time}) <= ${this.inData.to}
+  GROUP BY 
+    ${this.table.currency_id}, 
+    floor((EXTRACT(EPOCH FROM ${t1}.${this.table.time}) /${this.inData.interval}))
+  ) AS ${t}
+  GROUP BY 
+    ${t}.${this.table.currency_id}
+  OFFSET ${this.inData.offset}
+  FETCH FIRST ${this.inData.limit} ROWS ONLY`);
+
+    const result = await this.psql.query<{ quota: string; timestamps: number[]; rates: number[] }>(`
+      SELECT 
+        ${t}.${this.table.currency_id} as quota,
+        array_agg(${t}.${this.table.time}) as timestamps,
+        array_agg(${t}.${this.table.rate}) as rates
+      FROM  (
+        
+      SELECT 
+        ${this.table.currency_id} as ${this.table.currency_id},  
+        floor((EXTRACT(EPOCH FROM ${t1}.${this.table.time}) /${this.inData.interval})) *
+          ${this.inData.interval}  AS ${this.table.time},
+        AVG(${t1}.${this.table.rate}) as ${this.table.rate}
+      FROM 
+        ${this.table.$$NAME} AS ${t1}
+      LEFT JOIN LATERAL (
+          SELECT 
+            ${this.table.time} AS ${prev_time} 
+          FROM
+            ${this.table.$$NAME}
+          WHERE 
+            ${this.table.currency_id} = ${t1}.${this.table.currency_id} AND
+            ${t1}.${this.table.time} > ${this.table.time}
+          ORDER BY 
+            ${this.table.time} DESC
+          FETCH FIRST ROW ONLY
+        ) ${t2} ON TRUE
+      WHERE  
+        COALESCE (
+          EXTRACT(EPOCH FROM ${t2}.${prev_time}),
+          EXTRACT(EPOCH FROM ${t1}.${this.table.time})
+        ) >= ${this.inData.from}  
+          AND 
+        EXTRACT(EPOCH FROM ${t1}.${this.table.time}) <= ${this.inData.to}
+      GROUP BY 
+        ${this.table.currency_id}, 
+        floor((EXTRACT(EPOCH FROM ${t1}.${this.table.time}) /${this.inData.interval}))
+      ) AS ${t}
+      GROUP BY 
+        ${t}.${this.table.currency_id}
       OFFSET ${this.inData.offset}
       FETCH FIRST ${this.inData.limit} ROWS ONLY
-  `;
-  }
+  `);
 
-  private curr_rate() {
-    return `(FIRST_VALUE(${this.t.rate}) OVER w)`;
-  }
-  private prev_rate() {
-    return `(NTH_VALUE(${this.t.rate}, 2) OVER w)`;
-  }
-  private prev_or_curr_rate_if_prev_null() {
-    return `COALESCE(${this.prev_rate()},${this.curr_rate()})`;
-  }
-}
-
-class Parallel_Market_Currency_Names_And_Rates_From_Timestamp_Range {
-  t = new Parallel_Market_Table();
-  transformer = new To_Postgres_Type_Transformer();
-  lower_timestamptz: string;
-  high_timestamptz: string;
-
-  constructor(
-    private psql: postgres.Sql<{}>,
-    private inData: {
-      lowerTimestamp: number;
-      highTimestamp: number;
-      offset: number;
-      limit: number;
-    }
-  ) {
-    this.lower_timestamptz = this.transformer.to_timestamptz(this.inData.lowerTimestamp);
-    this.high_timestamptz = this.transformer.to_timestamptz(this.inData.highTimestamp);
-  }
-
-  async get(): Promise<Data[]> {
-    return await this.psql<{ quota: string; curr_rate: number[]; time: number[] }[]>`
-    SELECT 
-      t.quota as quota, 
-      array_agg(t.rate) AS curr_rate, 
-      array_agg(t.time * ${ONE_HOUR}) AS time 
-    FROM 
-      (
-        SELECT 
-          ${this.t.currency_id} as quota, 
-          AVG(${this.t.rate}) AS rate,
-          EXTRACT(EPOCH FROM ${this.t.timestamp}) / ${ONE_HOUR} AS time
-        FROM 
-          ${this.t.$name}
-        WHERE 
-          time >= ${this.lower_timestamptz} AND
-          time <= ${this.high_timestamptz}
-        GROUP BY 
-          ${this.t.currency_id}, 
-          EXTRACT(EPOCH FROM ${this.t.timestamp}) / ${ONE_HOUR}
-      ) as t
-    GROUP BY 
-      t.quota
-    OFFSET 
-      ${this.inData.offset}
-    FETCH FIRST ${this.inData.limit} ROWS ONLY
-  `;
-  }
-}
-
-class Black_Market_Base {
-  table = blackRates.$$NAME;
-  base = blackRates.base;
-  quota = blackRates.quota;
-  rate = blackRates.rate;
-  seller_id = blackRates.seller_id;
-  timestamp = blackRates.time;
-}
-
-class Black_Market_Currency_Names_And_Rates_From_Timestamp {
-  t = new Black_Market_Base();
-  transformer = new To_Postgres_Type_Transformer();
-
-  constructor(
-    private psql: postgres.Sql<{}>,
-    private inData: { timestamp: number; offset: number; limit: number; base: string }
-  ) {}
-
-  async get(): Promise<Date_Data[]> {
-    return await this.psql<Date_Data[]>`
-      SELECT 
-        ${this.quota} as quota, 
-        AVG(${this.rate}) as rate 
-      FROM 
-      (
-        SELECT 
-          DISTINCT ON(${this.seller_id}, ${this.quota}) 
-            ${this.seller_id}, ${this.quota}
-          FIRST_VALUE(${this.rate}) 
-            OVER(
-              PARTITION BY ${this.seller_id}, ${this.quota}
-              ORDER BY 
-              (
-                ${this.getTimeStampOrNow(this.inData.timestamp)} - ${this.postegresTimestampToInt(
-      this.timestamp
-    )}) ASC
-              ) as ${this.rate}
-          FROM 
-            ${this.table}
-          WHERE 
-            (
-              ${this.getTimeStampOrNow(this.inData.timestamp)} >= ${this.postegresTimestampToInt(
-      this.timestamp
-    )}
-            ) 
-            AND
-            ${this.base} = ${this.inData.base}
-      )
-      GROUP BY ${this.quota}
-      OFFSET ${this.inData.offset}
-      FETCH FIRST ${this.inData.offset} ROWS ONLY
-  `;
-  }
-}
-
-class Black_Market_Currency_Names_And_Rate_From_Timestamp_Range extends Black_Market_Base {
-  constructor(
-    private psql: postgres.Sql<{}>,
-    private inData: {
-      lowerTimestamp: number;
-      highTimestamp: number;
-      offset: number;
-      limit: number;
-      base: string;
-    }
-  ) {
-    super();
-  }
-
-  async get(): Promise<DateFrom_Data[]> {
-    return await this.psql<DateFrom_Data[]>`
-      SELECT 
-        t.${this.quota} as quota, 
-        array_agg(t.${this.rate}) as rate, 
-        array_agg(t.${this.timestamp}) as time
-      FROM (
-        SELECT 
-          ${this.quota},
-          AVG(${this.rate}) AS ${this.rate},
-          (${this.postegresTimestampToInt(this.timestamp)}/ ${PER_HOUR}) * ${PER_HOUR} AS ${
-      this.timestamp
-    }
-        FROM 
-          ${this.table}
-        WHERE ${this.base} = ${this.inData.base}
-          AND 
-            ${this.postegresTimestampToInt(
-              this.timestamp
-            )} > -1                         -- -1 means the seller deleted the rate 
-          AND 
-            (${this.postegresTimestampToInt(this.timestamp)} >= ${this.inData.lowerTimestamp})     
-          AND 
-            (${this.postegresTimestampToInt(this.timestamp)}) <= ${this.inData.highTimestamp})      
-        GROUP BY 
-            ${this.quota}, ${this.postegresTimestampToInt(this.timestamp)}/ ${PER_HOUR}
-      ) AS t
-      GROUP BY 
-        t.${this.quota}
-      OFFSET 
-        ${this.inData.offset}
-      FETCH FIRST ${this.inData.limit} ROWS ONLY;
-  `;
+    return result.rows;
   }
 }

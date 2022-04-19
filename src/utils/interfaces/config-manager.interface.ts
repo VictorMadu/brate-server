@@ -16,6 +16,7 @@ export interface Config {
       currency: {
         username: string;
         password: string;
+        pool_size: number;
       };
     };
   };

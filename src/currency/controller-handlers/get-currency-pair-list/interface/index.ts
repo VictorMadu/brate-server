@@ -2,41 +2,34 @@ import { headerSchema } from "currency/controller-handlers/get-currency-pair-lis
 import { querystringSchema } from "currency/controller-handlers/get-currency-pair-list/schema/querystring.schema";
 import { responseSchema } from "currency/controller-handlers/get-currency-pair-list/schema/response.schema";
 import { FromSchema } from "json-schema-to-ts";
-import postgres from "postgres";
+import { ResTuple as _ResTuple } from "../../_interfaces";
 
 export type Headers = FromSchema<typeof headerSchema>;
 export type Query = FromSchema<typeof querystringSchema>;
 export type Response = FromSchema<typeof responseSchema>;
 
+export type ResTuple = _ResTuple<Response["data"]>;
+
 export interface AuthParser {
   parseFromHeader(header: Record<string, any>): { userId?: string };
 }
 
-export interface DbCon {
-  getPsql(): postgres.Sql<{}>;
+export interface Db_Querier {
+  getTotal(): Promise<number | undefined>;
+  getFavourites(userId: string): Promise<[string, string][] | undefined>;
+  getCurrenciesRatesFromMarket(market: "black" | "parallel", inData: In_Data): Promise<Out_Data>;
 }
-//{ is_starred: S; price: number[]; quota: string }
-export interface Db {
-  getTotal(): Promise<number>;
-  getFavourites(userId: string): Promise<[string, string][]>;
-  getNamesAndRates(payload: Payload): Promise<DateFrom_Data[] | Date_Data[] | undefined>;
-}
-
-export type ServiceResult = {
-  data: Response["data"]["currency_pairs"]["data"];
-  dates: Response["data"]["currency_pairs"]["dates"];
-};
 
 export type Payload = {
   userId: string | undefined;
   base: string;
-  filter: "all" | "starred";
-  dateFrom?: number;
-  dateTo?: number;
-  date: number;
+  include_favourites: boolean | undefined;
+  from: number | undefined;
   market: "parallel" | "black";
-  pageOffset: number;
-  pageCount: number;
+  interval: number | undefined;
+  steps: number | undefined;
+  page_limit: string | undefined;
+  page_offset: string | undefined;
 };
 
 export type Result<S extends boolean | undefined> = {
@@ -44,20 +37,13 @@ export type Result<S extends boolean | undefined> = {
   dates: number[];
 };
 
-export interface Date_Data {
-  quota: string;
-  rate: number;
-}
+export type In_Data = {
+  base: string;
+  from: number;
+  interval: number;
+  limit: number;
+  offset: number;
+  to: number;
+};
 
-export interface DateFrom_Data {
-  quota: string;
-  rate: number[];
-  time: number[];
-}
-
-export interface Data {
-  quota: string;
-  curr_rate: number[];
-  prev_rate?: number[];
-  time?: number[];
-}
+export type Out_Data = { quota: string; timestamps: number[]; rates: number[] }[];
