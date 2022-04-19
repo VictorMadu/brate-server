@@ -13,4 +13,5 @@ postgres:
   clients:
     currency: 
       username: 'postgres'
-      passowrd: 'QScvWoBr15I2XDF1bWLLDA'
+      password: 'QScvWoBr15I2XDF1bWLLDA'
+      pool_size: 10

@@ -17,37 +17,36 @@ export const responseSchema = {
                 type: "object",
                 properties: {
                   quota: { type: "string" },
-                  price: {
+                  rates: {
                     type: "array",
                     items: {
                       type: "number",
                     },
                   },
-                  is_starred: { type: "boolean" },
+                  timestamps: {
+                    type: "array",
+                    items: {
+                      type: "number",
+                    },
+                  },
                 },
                 additionalProperties: false,
-                required: ["quota", "price"],
+                required: ["quota", "rates", "timestamps"],
               },
             },
-            dates: {
-              type: "array",
-              items: {
-                type: "number",
-              },
-            },
+            favourites: { type: "array", items: { type: "array", items: { type: "string" } } },
             base: { type: "string" },
           },
-          required: ["base", "dates", "data"],
+          required: ["base", "favourites", "data"],
           additionalProperties: false,
         },
         pagination: {
           type: "object",
           properties: {
-            total: { type: "number" },
             skipped: { type: "number" },
             page_count: { type: "number" },
           },
-          required: ["total", "skipped", "page_count"],
+          required: ["skipped", "page_count"],
           additionalProperties: false,
         },
       },
@@ -55,6 +54,6 @@ export const responseSchema = {
       required: ["currency_pairs", "pagination"],
     },
   },
-  required: ["status", "msg", "data"],
+  required: ["status", "msg"],
   additionalProperties: false,
 } as const;

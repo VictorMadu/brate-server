@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "nist-core";
+import { Inject, Injectable } from "nist-core/injectables";
 import { ConfigService } from "./config-factory.service";
 import { IAuthHeader, IParsedToken } from "./interfaces/auth-manager.inteface";
 import * as jwt from "jsonwebtoken";
@@ -10,7 +10,7 @@ const DEFAULT_PARSED_TOKEN: IParsedToken = {};
 @Injectable()
 export class AuthParserService {
   private jwtSecretKey: string;
-  constructor(@Inject(ConfigService) config: ConfigService) {
+  constructor(private config: ConfigService) {
     this.jwtSecretKey = config.get(JWT_SECRET_KEY);
   }
 
@@ -26,9 +26,7 @@ export class AuthParserService {
   private parseToken(token: string | undefined): IParsedToken {
     try {
       const parsedToken = this.verifyAndParseToken(token);
-      return this.isParsedTokenExpired(parsedToken)
-        ? DEFAULT_PARSED_TOKEN
-        : parsedToken;
+      return this.isParsedTokenExpired(parsedToken) ? DEFAULT_PARSED_TOKEN : parsedToken;
     } catch (error) {
       return DEFAULT_PARSED_TOKEN;
     }
@@ -43,9 +41,7 @@ export class AuthParserService {
   }
 
   private isParsedTokenExpired(parsedToken: jwt.JwtPayload) {
-    return new Date().getTime() > this.getParsedTokenExpireTime(parsedToken)
-      ? true
-      : false;
+    return new Date().getTime() > this.getParsedTokenExpireTime(parsedToken) ? true : false;
   }
 
   private getParsedTokenExpireTime(parsedToken: jwt.JwtPayload) {

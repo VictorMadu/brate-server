@@ -6,4 +6,5 @@ export const headerSchema = {
       pattern: "^Bearer ",
     },
   },
+  required: ["authorization"],
 } as const;

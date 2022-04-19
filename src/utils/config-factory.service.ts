@@ -1,4 +1,4 @@
-import { Injectable } from "nist-core";
+import { Injectable } from "nist-core/injectables";
 import { InnerKeys, InnerValue } from "ts-util-types";
 import {
   ConfigDevManager,
