@@ -43,6 +43,6 @@ export const price_alerts = {
   target_rate: "target_rate" as "target_rate",
   base: "base" as "base",
   quota: "quota" as "quota",
-  is_deleted: "is_deleted" as "is_deleted",
+  deleted_at: "deleted_at" as "deleted_at",
   market_type: "market_type" as "market_type",
 };

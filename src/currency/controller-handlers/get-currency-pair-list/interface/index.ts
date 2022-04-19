@@ -16,7 +16,7 @@ export interface AuthParser {
 
 export interface Db_Querier {
   getTotal(): Promise<number | undefined>;
-  getFavourites(userId: string): Promise<[string, string][] | undefined>;
+  getFavourites(userId: string): Promise<{ base: string; quota: string }[] | undefined>;
   getCurrenciesRatesFromMarket(market: "black" | "parallel", inData: In_Data): Promise<Out_Data>;
 }
 

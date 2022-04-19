@@ -29,7 +29,7 @@ export class GetAlertListDbService {
       WHERE 
         ${table.user_id} = '${this.helper.sanitizeStr(inData.userId)}' AND
         ${table.market_type} = '${this.getMarketType(inData.market_type)}' AND 
-        ${table.is_deleted} = 'f' AND
+        ${table.deleted_at} IS NULL AND
         ${this.getFilterQuery(inData.filter)}
       OFFSET
         ${inData.offset}
@@ -41,8 +41,8 @@ export class GetAlertListDbService {
   }
 
   private getMarketType(market: "parallel" | "black") {
-    if (market === "black") return "b";
-    return "p";
+    if (market === "black") return "B";
+    return "P";
   }
 
   private getFilterQuery(filter: "all" | "untriggered" | "triggered") {
