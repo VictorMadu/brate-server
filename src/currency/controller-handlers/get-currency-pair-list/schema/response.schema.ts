@@ -34,7 +34,18 @@ export const responseSchema = {
                 required: ["quota", "rates", "timestamps"],
               },
             },
-            favourites: { type: "array", items: { type: "array", items: { type: "string" } } },
+            favourites: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  base: { type: "string" },
+                  quota: { type: "string" },
+                },
+                additionalProperties: false,
+                required: ["base", "quota"],
+              },
+            },
             base: { type: "string" },
           },
           required: ["base", "favourites", "data"],

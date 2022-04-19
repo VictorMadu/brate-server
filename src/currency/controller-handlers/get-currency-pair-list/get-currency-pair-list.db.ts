@@ -39,11 +39,12 @@ export class GetCurrencyPairListDbService implements Db_Querier {
     return this.helper.getFromFirstRow(results, "total");
   }
 
-  async getFavourites(userId: string): Promise<[string, string][] | undefined> {
+  async getFavourites(userId: string): Promise<{ base: string; quota: string }[] | undefined> {
     const colName = users.favourite_currency_pairs;
-    const result = await this.psql.query<{ [colName]: [string, string][] }>(`
+    const result = await this.psql.query<{ [colName]: { base: string; quota: string }[] }>(`
       SELECT 
-        ${colName} 
+        ${colName[1]} as base,
+        ${colName[2]} as quota,
       FROM 
         ${users.$$NAME}
       WHERE
