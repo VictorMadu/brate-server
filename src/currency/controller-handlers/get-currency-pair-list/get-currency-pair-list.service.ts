@@ -1,107 +1,67 @@
-import { Headers, Query, Response, In_Data, ResTuple } from "./interface";
-import { clamp } from "lodash";
+import { InData, ResTuple } from "./interface";
 import { GetCurrencyPairListDbService } from "./get-currency-pair-list.db";
 import { Injectable } from "nist-core/injectables";
-import { AuthParserService } from "../../../utils/auth-manager.service";
+import { AuthManagerService } from "../../../utils/auth-manager.service";
 
-const DEFAULT_BASE: string = "USD";
-const DEFAULT_MARKET = "parallel";
-const MIN_INTERVAL = 1 * 24 * 60 * 60; // 1 day interval
-const MAX_INTERVAL = 365 * 24 * 60 * 60; // 1 YEAR interval
-const DEFAULT_STEPS = 1;
-const MAX_STEPS = 50;
-const MIN_PAGE_OFFSET = 0;
-const MAX_PAGE_OFFSET = 300;
-const MIN_PAGE_LIMIT = 1;
-const MAX_PAGE_LIMIT = 300;
+interface ServiceInData {
+  authToken: string | undefined;
+  base: string;
+  from: number;
+  include_favourites: boolean;
+  market_type: "parallel" | "black";
+  steps: number;
+  interval: number;
+  page_offset: number;
+  page_count: number;
+}
 
 @Injectable()
 export class Service {
   constructor(
     private dbService: GetCurrencyPairListDbService,
-    private authParser: AuthParserService
+    private authManager: AuthManagerService
   ) {}
 
-  async handle(headers: Headers, query: Query): Promise<ResTuple> {
-    const results = await this.getResults(query);
-
+  async handle(inData: ServiceInData): Promise<ResTuple> {
+    const currencies_rates = await this.dbService.getCurrenciesRates(this.getDataForDb(inData));
     return [
       200,
       "",
       {
         currency_pairs: {
-          base: this.getBase(query),
-          favourites: (await this.getFavourites(headers)) ?? [],
-          data: results,
+          base: inData.base,
+          favourites: await this.getFavourites(this.getUserId(inData)),
+          data: currencies_rates,
         },
         pagination: {
-          page_count: this.getLimit(query),
-          skipped: this.getOffset(query),
+          page_count: currencies_rates.length,
+          skipped: inData.page_offset,
         },
       },
     ];
   }
 
-  private async getFavourites(headers: Headers) {
-    const { userId } = this.authParser.parseFromHeader(headers);
-    return userId ? await this.dbService.getFavourites(userId) : [];
+  private getUserId(inData: ServiceInData) {
+    const authToken = inData.authToken;
+    if (!authToken) return undefined;
+    return this.authManager.parse(authToken)?.userId;
   }
 
-  private async getResults(query: Query) {
-    return await this.dbService.getCurrenciesRatesFromMarket(
-      query.market || DEFAULT_MARKET,
-      this.getDataForDb(query)
-    );
+  private async getFavourites(userId: string | undefined) {
+    if (!userId) return [];
+    return (await this.dbService.getFavourites(userId)) ?? [];
   }
 
-  private convertNumToTnt(float_num: number) {
-    return Math.round(float_num);
-  }
-
-  private getCurrentTimestamp() {
-    const timestamp = new Date().getTime() / 1000;
-    return this.convertNumToTnt(timestamp);
-  }
-
-  private getDataForDb(query: Query): In_Data {
-    const interval = this.getInterval(query);
-    const steps = this.getSteps(query);
-    const from = this.getFrom(query);
+  private getDataForDb(inData: ServiceInData): InData {
+    const { interval, steps, from } = inData;
     return {
-      base: this.getBase(query),
+      market_type: inData.market_type,
+      base: inData.base,
       interval,
       from,
-      offset: this.getOffset(query),
-      limit: this.getLimit(query),
+      offset: inData.page_offset,
+      limit: inData.page_count,
       to: from + steps * interval,
     };
-  }
-
-  private getOffset(query: Query) {
-    const offset = this.convertNumToTnt(query.page_offset || MIN_PAGE_OFFSET);
-    return clamp(offset, MIN_PAGE_OFFSET, MAX_PAGE_OFFSET);
-  }
-
-  private getLimit(query: Query) {
-    const limit = this.convertNumToTnt(query.page_count || MIN_PAGE_LIMIT);
-    return clamp(limit, MIN_PAGE_LIMIT, MAX_PAGE_LIMIT);
-  }
-
-  private getSteps(query: Query) {
-    const steps = this.convertNumToTnt(query.steps || DEFAULT_STEPS);
-    return clamp(steps, -MAX_STEPS, MAX_STEPS);
-  }
-
-  private getFrom(query: Query) {
-    return query.from || this.getCurrentTimestamp();
-  }
-
-  private getBase(query: Query) {
-    return query.base || DEFAULT_BASE;
-  }
-
-  private getInterval(query: Query) {
-    const interval = this.convertNumToTnt(query.interval || MIN_INTERVAL);
-    return clamp(interval, MIN_INTERVAL, MAX_INTERVAL);
   }
 }

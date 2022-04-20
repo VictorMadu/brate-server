@@ -8,9 +8,9 @@ export const responseSchema = {
     data: {
       type: "object",
       properties: {
-        delete_count: { type: "number" },
+        token: { type: "string" },
       },
-      required: ["delete_count"],
+      required: ["token"],
       additionalProperties: false,
     },
   },

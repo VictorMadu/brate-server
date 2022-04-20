@@ -1,23 +1,23 @@
 import { Injectable } from "nist-core/injectables";
-import { InnerValue } from "ts-util-types";
-import { AuthParserService } from "../../../utils/auth-manager.service";
+import { AuthManagerService } from "../../../utils/auth-manager.service";
 import { DbService } from "./delete-alert-list.db";
-import { Headers, Query, Response } from "./interface";
+import { Response } from "./interface";
+
+interface ServiceInData {
+  authorization: string;
+  ids: string[];
+}
 
 @Injectable()
 export class Service {
-  constructor(private dbService: DbService, private authParser: AuthParserService) {}
+  constructor(private dbService: DbService, private authManager: AuthManagerService) {}
 
-  async handle(
-    headers: Headers,
-    query: Query
-  ): Promise<[number, string, Response["data"] | undefined]> {
-    const userId = this.authParser.parseFromHeader(headers).userId;
+  async handle(inData: ServiceInData): Promise<[number, string, Response["data"] | undefined]> {
+    const userId = this.authManager.parse(inData.authorization).userId;
     if (!userId) return [401, "", undefined];
 
-    const ids = this.getIds(query);
     const result: number = await this.dbService.query({
-      ids,
+      ids: inData.ids,
     });
 
     return [
@@ -27,11 +27,5 @@ export class Service {
         delete_count: result,
       },
     ];
-  }
-
-  getIds(query: Query) {
-    if (query.ids) return query.ids;
-    if (query.id) return [query.id];
-    return [];
   }
 }

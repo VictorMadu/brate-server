@@ -36,7 +36,7 @@ export class GetAlertListDbService {
       FETCH FIRST ${inData.limit} ROWS ONLY
         
     `);
-
+    await this.psql.release();
     return result.rows;
   }
 

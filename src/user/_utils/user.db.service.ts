@@ -1,8 +1,8 @@
 import { Injectable } from "nist-core/injectables";
-import { PostgresInstanceManager } from "../../../utils/postgres-db-manager.service";
+import { PostgresInstanceManager } from "../../utils/postgres-db-manager.service";
 
 @Injectable()
-export class CurrencyPostgresDbService {
+export class PostgresDbService {
   constructor(private postgresManager: PostgresInstanceManager) {
     this.postgresManager.setUserAndPwdKeyForCtx(
       this,

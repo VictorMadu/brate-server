@@ -1,13 +1,13 @@
-import { ResSend } from "currency/controller-handlers/_interfaces";
+import { ResSend } from "../../../_interfaces";
 import { HttpController } from "nist-fastify-adapter/injectables/http-controller";
 import * as HttpMethods from "nist-fastify-adapter/injectables/http.method.decorators";
 import * as HttpParams from "nist-fastify-adapter/injectables/http.param.decorators";
 import { ALERT_LIST } from "../_constants/routes";
 import { Service } from "./delete-alert-list.service";
 
-import { Headers, Query, Response } from "./interface";
+import { Body, Headers, Response } from "./interface";
 import { headerSchema } from "./schema/header.schema";
-import { querystringSchema } from "./schema/querystring.schema";
+import { bodySchema } from "./schema/body.schema";
 import { responseSchema } from "./schema/response.schema";
 
 @HttpController(ALERT_LIST)
@@ -16,21 +16,30 @@ export class Controller {
 
   @HttpMethods.Schema({
     headers: headerSchema,
-    querystring: querystringSchema,
+    body: bodySchema,
     response: responseSchema,
   })
   @HttpMethods.Post()
   async route(
     @HttpParams.Headers() headers: Headers,
-    @HttpParams.Query() query: Query,
+    @HttpParams.Body() body: Body,
     @HttpParams.Send() send: ResSend
   ) {
-    const [code, msg, payload] = await this.service.handle(headers, query);
+    const [code, msg, payload] = await this.service.handle({
+      authorization: headers.authorization,
+      ids: this.getIds(body.ids, body.id),
+    });
 
     send<Response>(code, {
-      status: true,
+      status: code < 300,
       msg,
       data: payload,
     });
+  }
+
+  getIds(ids?: string[], id?: string) {
+    if (ids) return ids;
+    if (id) return [id];
+    return [];
   }
 }
