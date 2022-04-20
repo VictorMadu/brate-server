@@ -23,8 +23,17 @@ export const users = {
   phone: "phone" as "phone",
   favourite_currency_pairs: "favourite_currency_pairs" as "favourite_currency_pairs",
   created_at: "created_at" as "created_at",
-  verified_at: "verified_at" as "verified_at",
   wallet_id: "wallet_id" as "wallet_id",
+  verification_details: "verification_details" as "verification_details",
+};
+
+export const user_verification_details = {
+  $$NAME: "user_verification_details" as "user_verification_details",
+  user_verification_details_id: "user_verification_details_id" as "user_verification_details_id",
+  one_time_password: "one_time_password" as "one_time_password",
+  created_at: "created_at" as "created_at",
+  tried_passwords: "tried_passwords" as "tried_passwords",
+  tried_passwords_at: "tried_passwords_at" as "tried_passwords_at",
 };
 
 export const currencies = {
@@ -45,4 +54,11 @@ export const price_alerts = {
   quota: "quota" as "quota",
   deleted_at: "deleted_at" as "deleted_at",
   market_type: "market_type" as "market_type",
+};
+
+export const wallets = {
+  $$NAME: "wallets" as "wallets",
+  wallet_id: "wallet_id" as "wallet_id",
+  seller_id: "seller_id" as "seller_id",
+  created_at: "created_at" as "created_at",
 };

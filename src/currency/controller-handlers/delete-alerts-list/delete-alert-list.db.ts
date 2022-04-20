@@ -1,6 +1,6 @@
 import { Injectable } from "nist-core/injectables";
 import { CurrencyPostgresDbService } from "../_utils/currency.db.service";
-import { InData, OutData, Response } from "./interface";
+import { InData } from "./interface";
 import { PoolClient } from "pg";
 import { price_alerts } from "../../../utils/postgres-db-types/erate";
 import { PostgresHeplper } from "../../../utils/postgres-helper";
@@ -23,9 +23,12 @@ export class DbService {
       SET 
         ${table.deleted_at} = NOW()
       WHERE
-        ${table.price_alert_id} = (${inData.toString()})   
+        ${
+          table.price_alert_id
+        } = (${inData.toString()})    // TODO: use the dollar sign interpolator and array of values provided by pg
     `);
 
+    await this.psql.release();
     return result.rowCount;
   }
 }

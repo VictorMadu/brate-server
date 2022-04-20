@@ -7,7 +7,7 @@ import {
   parallelRates,
   users,
 } from "../../../utils/postgres-db-types/erate";
-import { Db_Querier, In_Data, Out_Data, Payload } from "./interface";
+import { InData, OutData, Payload } from "./interface";
 import { PostgresHeplper } from "../../../utils/postgres-helper";
 
 const t = "__t";
@@ -21,11 +21,11 @@ const prev_time = "__prev_time";
 // TODO: Ensure listeners are called from minimal to top
 
 @Injectable()
-export class GetCurrencyPairListDbService implements Db_Querier {
+export class GetCurrencyPairListDbService {
   psql!: PoolClient;
   payload!: Payload;
   market!: "black" | "parallel";
-  inData!: In_Data;
+  inData!: InData;
   constructor(private currencyDb: CurrencyPostgresDbService, private helper: PostgresHeplper) {}
 
   private onReady() {
@@ -36,7 +36,8 @@ export class GetCurrencyPairListDbService implements Db_Querier {
     const results = await this.psql.query<{ total: number }>(`
       SELECT COUNT(*) as total FROM ${currencies.$$NAME}
     `);
-    return this.helper.getFromFirstRow(results, "total");
+    await this.psql.release();
+    return this.helper.getPropFromFirstRow(results, "total");
   }
 
   async getFavourites(userId: string): Promise<{ base: string; quota: string }[] | undefined> {
@@ -50,26 +51,29 @@ export class GetCurrencyPairListDbService implements Db_Querier {
       WHERE
         ${users.user_id} = ${userId}
     `);
-    return this.helper.getFromFirstRow(result, colName);
+    await this.psql.release();
+    return this.helper.getPropFromFirstRow(result, colName);
   }
 
-  async getCurrenciesRatesFromMarket(
-    marketType: "black" | "parallel",
-    inData: In_Data
-  ): Promise<Out_Data> {
-    return await this.createQuerierFromMarketTypeAndInData(marketType, inData).get();
-  }
-
-  private createQuerierFromMarketTypeAndInData(marketType: "black" | "parallel", inData: In_Data) {
-    if (marketType === "black") return new Black_Market(this.psql, inData);
-    return new Parallel_Market(this.psql, inData);
+  async getCurrenciesRates(inData: InData): Promise<OutData> {
+    const marketFactory = new MarketFactory(this.psql, inData);
+    return marketFactory.create().get();
   }
 }
 
-class Black_Market {
+class MarketFactory {
+  constructor(private psql: PoolClient, private inData: InData) {}
+  create() {
+    const marketType = this.inData.market_type;
+    if (marketType === "black") return new BlackMarket(this.psql, this.inData);
+    return new ParallelMarket(this.psql, this.inData);
+  }
+}
+
+class BlackMarket {
   table = blackRates;
 
-  constructor(private psql: PoolClient, private inData: In_Data) {}
+  constructor(private psql: PoolClient, private inData: InData) {}
   async get() {
     const result = await this.psql.query<{ quota: string; timestamps: number[]; rates: number[] }>(`
       SELECT 
@@ -116,13 +120,14 @@ class Black_Market {
     FETCH FIRST ${this.inData.limit} ROWS ONLY
   `);
 
+    await this.psql.release();
     return result.rows;
   }
 }
-class Parallel_Market {
+class ParallelMarket {
   table = parallelRates;
 
-  constructor(private psql: PoolClient, private inData: In_Data) {}
+  constructor(private psql: PoolClient, private inData: InData) {}
   async get() {
     console.log("parallel market");
     console.log(this.table);
@@ -212,6 +217,7 @@ class Parallel_Market {
       OFFSET ${this.inData.offset}
       FETCH FIRST ${this.inData.limit} ROWS ONLY
   `);
+    await this.psql.release();
 
     return result.rows;
   }

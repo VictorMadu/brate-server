@@ -1,29 +1,32 @@
 import { Inject, Injectable } from "nist-core/injectables";
 import { ConfigService } from "./config-factory.service";
-import { IAuthHeader, IParsedToken } from "./interfaces/auth-manager.inteface";
+import { IAuthHeader, UserData } from "./interfaces/auth-manager.inteface";
 import * as jwt from "jsonwebtoken";
 
-const AUTH_HEADER_KEY = "authorization";
+type PartialUserData = Partial<UserData>;
+
 const JWT_SECRET_KEY = "jwt.secretKey";
-const DEFAULT_PARSED_TOKEN: IParsedToken = {};
+const DEFAULT_PARSED_TOKEN: PartialUserData = {};
+const EXPIRE_IN = 15 * 60 * 60; // 15 mins;
 
 @Injectable()
-export class AuthParserService {
+export class AuthManagerService {
   private jwtSecretKey: string;
   constructor(private config: ConfigService) {
     this.jwtSecretKey = config.get(JWT_SECRET_KEY);
   }
 
-  parseFromHeader(header: IAuthHeader): IParsedToken {
-    const token = this.getToken(header);
-    return this.parseToken(token);
+  parse(authToken: string): PartialUserData {
+    return this.parseToken(authToken);
   }
 
-  private getToken(header: IAuthHeader) {
-    return header[AUTH_HEADER_KEY];
+  sign(userData: UserData) {
+    return jwt.sign(userData, this.jwtSecretKey, {
+      expiresIn: EXPIRE_IN,
+    });
   }
 
-  private parseToken(token: string | undefined): IParsedToken {
+  private parseToken(token: string | undefined): PartialUserData {
     try {
       const parsedToken = this.verifyAndParseToken(token);
       return this.isParsedTokenExpired(parsedToken) ? DEFAULT_PARSED_TOKEN : parsedToken;
@@ -33,7 +36,7 @@ export class AuthParserService {
   }
 
   private verifyAndParseToken(token: string | undefined) {
-    return this.parseJwtToken(token ?? "") as jwt.JwtPayload & IParsedToken;
+    return this.parseJwtToken(token ?? "") as jwt.JwtPayload & PartialUserData;
   }
 
   private parseJwtToken(token: string) {

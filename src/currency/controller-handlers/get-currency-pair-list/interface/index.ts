@@ -2,23 +2,13 @@ import { headerSchema } from "currency/controller-handlers/get-currency-pair-lis
 import { querystringSchema } from "currency/controller-handlers/get-currency-pair-list/schema/querystring.schema";
 import { responseSchema } from "currency/controller-handlers/get-currency-pair-list/schema/response.schema";
 import { FromSchema } from "json-schema-to-ts";
-import { ResTuple as _ResTuple } from "../../_interfaces";
+import { ResTuple as _ResTuple } from "../../../../_interfaces";
 
 export type Headers = FromSchema<typeof headerSchema>;
 export type Query = FromSchema<typeof querystringSchema>;
 export type Response = FromSchema<typeof responseSchema>;
 
 export type ResTuple = _ResTuple<Response["data"]>;
-
-export interface AuthParser {
-  parseFromHeader(header: Record<string, any>): { userId?: string };
-}
-
-export interface Db_Querier {
-  getTotal(): Promise<number | undefined>;
-  getFavourites(userId: string): Promise<{ base: string; quota: string }[] | undefined>;
-  getCurrenciesRatesFromMarket(market: "black" | "parallel", inData: In_Data): Promise<Out_Data>;
-}
 
 export type Payload = {
   userId: string | undefined;
@@ -37,7 +27,8 @@ export type Result<S extends boolean | undefined> = {
   dates: number[];
 };
 
-export type In_Data = {
+export type InData = {
+  market_type: "parallel" | "black";
   base: string;
   from: number;
   interval: number;
@@ -46,4 +37,4 @@ export type In_Data = {
   to: number;
 };
 
-export type Out_Data = { quota: string; timestamps: number[]; rates: number[] }[];
+export type OutData = { quota: string; timestamps: number[]; rates: number[] }[];
