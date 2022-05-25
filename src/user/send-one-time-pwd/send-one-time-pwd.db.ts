@@ -1,10 +1,14 @@
 import { Injectable } from "nist-core/injectables";
 import { PostgresDbService } from "../_utils/user.db.service";
-import { PoolClient } from "pg";
-import { users, user_verification_details } from "../../utils/postgres-db-types/erate";
-import { PostgresHeplper } from "../../utils/postgres-helper";
-import { InnerKeys, InnerValue } from "ts-util-types";
-import { get } from "lodash";
+import { PoolClient, QueryResult } from "pg";
+import {
+  users,
+  user_verification_details,
+} from "../../utils/postgres-db-types/erate";
+import {
+  PostgresHeplper,
+  PostgresPoolClientRunner,
+} from "../../utils/postgres-helper";
 
 interface InData {
   email: string;
@@ -13,41 +17,29 @@ interface InData {
 
 interface VerificationOutData {
   id: string;
-  oneTimePwd: string;
+  one_time_pwd: string;
 }
 
 @Injectable()
 export class DbService {
-  psql!: PoolClient;
-  constructor(private db: PostgresDbService, private helper: PostgresHeplper) {}
+  constructor(
+    private db: PostgresDbService,
+    private helper: PostgresHeplper,
+    private runner: PostgresPoolClientRunner
+  ) {}
 
   private onReady() {
-    this.psql = this.db.getPsql();
+    this.runner.setPsql(this.db.getPsql());
   }
 
   async saveAndReturnOTPAndEmail(inData: InData) {
-    let results:
-      | {
-          email: string;
-          oneTimePwd: string;
-        }
-      | undefined;
-    try {
-      this.helper.beginTransaction(this.psql);
-      results = await this.runCreationOfVerificationProcess(inData);
-      this.helper.endPoolClientTransaction(this.psql, results);
-      return results;
-    } catch (error) {
-      this.helper.endPoolClientTransaction(this.psql, results);
-    }
-    return results;
-  }
-
-  private async runCreationOfVerificationProcess(inData: InData) {
-    return UserVerificationCreator.runCreationOfUserVerificationProcess(
-      this.psql,
-      inData,
-      this.helper
+    return await this.runner.runQuery(
+      async (psql) =>
+        await UserVerificationCreator.runCreationOfUserVerificationProcess(
+          psql,
+          inData,
+          this.helper
+        )
     );
   }
 }
@@ -72,47 +64,121 @@ export class UserVerificationCreator {
     );
 
     if (!userDetails) return undefined;
+
     return {
-      oneTimePwd: verificationDetails.oneTimePwd,
+      oneTimePwd: verificationDetails.one_time_pwd,
       email: userDetails.email,
     };
   }
 
   async createVerificationAndReturnDetails() {
-    const result = await this.psql.query<VerificationOutData>(`
-      INSERT INTO
-        ${user_verification_details.$$NAME}
-        (
-          ${user_verification_details.one_time_password},
+    const uvd = user_verification_details;
+    console.log(
+      "createVerificationAndReturnDetails query",
+      `
+    INSERT INTO
+    ${user_verification_details.$$NAME}
+    (
+      ${user_verification_details.one_time_password}
+    )
+  SELECT 
+    ${this.helper.sanitize(this.inData.one_time_pwd)}
+  WHERE
+    -- If user is already verified
+    NOT EXISTS (
+      SELECT 
+        1 
+      FROM 
+        ${users.$$NAME} as u
+      INNER JOIN 
+        ${uvd.$$NAME} as uvd
+      ON 
+        uvd.${uvd.user_verification_details_id} = u.${
+        users.verification_details
+      } [
+          array_length(
+            u.${users.verification_details}, 
+            1
+          )
+        ]
+      WHERE
+       ${users.email} = ${this.helper.sanitize(this.inData.email)} AND
+       uvd.${uvd.one_time_password} = uvd.${uvd.tried_passwords} [
+        array_length(
+          uvd.${uvd.tried_passwords}, 
+          1
         )
-      VALUES 
-        (
-          ARRAY [${this.helper.sanitize(this.inData.one_time_pwd)}]
-        )
-      RETURNING 
-        ${user_verification_details.user_verification_details_id} as id,
-        ${user_verification_details.one_time_password} as oneTimePwd
-         
-    `);
+      ]
+    )
+  RETURNING 
+    ${user_verification_details.user_verification_details_id} as id,
+    ${user_verification_details.one_time_password} as one_time_pwd `
+    );
 
-    return this.helper.getFromFirstRow(result);
+    try {
+      const result = await this.psql.query<VerificationOutData>(`
+    INSERT INTO
+      ${user_verification_details.$$NAME}
+      (
+        ${user_verification_details.one_time_password}
+      )
+    SELECT 
+      ${this.helper.sanitize(this.inData.one_time_pwd)}
+    WHERE
+      -- If user is already verified
+      NOT EXISTS (
+        SELECT 
+          1 
+        FROM 
+          ${users.$$NAME} as u
+        INNER JOIN 
+          ${uvd.$$NAME} as uvd
+        ON 
+          uvd.${uvd.user_verification_details_id} = u.${
+        users.verification_details
+      } [
+            array_length(
+              u.${users.verification_details}, 
+              1
+            )
+          ]
+        WHERE
+         ${users.email} = ${this.helper.sanitize(this.inData.email)} AND
+         uvd.${uvd.one_time_password} = uvd.${uvd.tried_passwords} [
+          array_length(
+            uvd.${uvd.tried_passwords}, 
+            1
+          )
+        ]
+      )
+    RETURNING 
+      ${user_verification_details.user_verification_details_id} as id,
+      ${user_verification_details.one_time_password} as one_time_pwd  
+  `);
+      console.log("createVerificationAndReturnDetails result", result);
+      return this.helper.getFirstRow(result);
+    } catch (error) {
+      console.log("createVerificationAndReturnDetails error", error);
+      throw error;
+    }
   }
 
-  async updateUserWithVerificationDetailsAndGetDetails(verificationDetails: VerificationOutData) {
+  async updateUserWithVerificationDetailsAndGetDetails(
+    verificationDetails: VerificationOutData
+  ) {
     const result = await this.psql.query<{ email: string }>(`
     UPDATE
       ${users.$$NAME}
-    WHERE
-      ${users.email} = ${this.helper.sanitize(this.inData.email)}
     SET 
       ${users.verification_details} = array_append(
         ${users.verification_details},
-        ${this.helper.sanitize(verificationDetails)}
-       )
+        ${this.helper.sanitize(verificationDetails.id)}
+      )
+    WHERE
+      ${users.email} = ${this.helper.sanitize(this.inData.email)}
     RETURNING 
-      ${users.email} as email,
-  `);
-
-    return this.helper.getFromFirstRow(result);
+      ${users.email} as email
+`);
+    return this.helper.getFirstRow(result);
   }
 }

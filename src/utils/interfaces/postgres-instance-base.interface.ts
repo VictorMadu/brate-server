@@ -3,7 +3,7 @@ import { Config } from "./config-manager.interface";
 
 export type PostgresKeys<K extends string, T extends unknown = InnerKeys<Config>> = 
 T extends InnerKeys<Config> ? 
-  T extends `postgres.clients.${string}.${K}` ? 
+  T extends `postgres.clients.${'currency'}.${K}` ? 
     T 
     : 
     never

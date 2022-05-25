@@ -4,15 +4,14 @@ import * as yaml from "js-yaml";
 import { InnerKeys, InnerValue } from "ts-util-types";
 import { get } from "lodash";
 
-export interface ConfigManger<
-  T extends Record<string, any> = Record<string, any>
-> {
+// TODO: Use a simpler method like the config service in web client
+
+export interface ConfigManger<T extends Record<string, any> = Record<string, any>> {
   get<K extends InnerKeys<T>>(key: K): InnerValue<T, K>;
 }
 
-abstract class ConfigManagerBase<
-  T extends Record<string, any> = Record<string, any>
-> implements ConfigManger<T> {
+abstract class ConfigManagerBase<T extends Record<string, any> = Record<string, any>>
+  implements ConfigManger<T> {
   private FILE_ENCODING: BufferEncoding = "utf-8";
   private config: Record<string, any> = {};
   protected abstract getFileName(): string;

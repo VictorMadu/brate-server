@@ -18,3 +18,11 @@ postgres:
 
 bcrypt: 
   saltRounds: 12
+  expiryAfter: 14400
+
+currency_rate:
+  url: 'http://data.fixer.io/api'
+  
+  api_keys:
+    - '0f15e30f695326c081ddbf30424e019e'
+    

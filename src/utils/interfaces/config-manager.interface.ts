@@ -20,4 +20,13 @@ export interface Config {
       };
     };
   };
+  bcrypt: {
+    saltRounds: number;
+    expiryAfter: number;
+  };
+
+  currency_rate: {
+    url: string;
+    api_keys: string[];
+  };
 }

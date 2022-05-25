@@ -13,11 +13,6 @@ class PostgresInstanceService {
     private userNameKey: PostgresKeys<"username">,
     private passwordKey: PostgresKeys<"password">
   ) {
-    console.log("postgres.host", this.config.get("postgres.host"));
-    console.log("postgres.port", this.config.get("postgres.port"));
-    console.log("postgres.database", this.config.get("postgres.database"));
-    console.log("userNameKey", this.config.get(this.userNameKey));
-    console.log("passwordKey", this.config.get(this.passwordKey));
     this.pool = new Pool({
       host: this.config.get("postgres.host"),
       port: this.config.get("postgres.port"),

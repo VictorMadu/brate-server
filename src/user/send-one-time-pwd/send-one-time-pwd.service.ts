@@ -49,7 +49,7 @@ export class Service {
   }
 
   private async sendOTPtoUserEmail(outData: OutData) {
-    throw new Error("Unimplemented");
+    console.log("OTP data details", outData);
     // TODO: Send one_time_pwd to use
   }
 }
