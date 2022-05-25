@@ -1,6 +1,6 @@
 import { FromSchema } from "json-schema-to-ts";
 
-export const responseSchema = {
+export const resxxxSchema = {
   type: "object",
   properties: {
     status: { type: "boolean" },

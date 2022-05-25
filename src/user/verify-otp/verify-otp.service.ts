@@ -14,18 +14,25 @@ interface UserData {
 }
 
 interface OutData {
-  token: string;
+  token?: string;
+  expires_in?: number;
 }
 
 @Injectable()
 export class Service {
-  constructor(private dbService: DbService, private authManager: AuthManagerService) {}
+  constructor(
+    private dbService: DbService,
+    private authManager: AuthManagerService
+  ) {}
 
-  async handle(inData: ServiceInData): Promise<[number, string, OutData | undefined]> {
+  async handle(
+    inData: ServiceInData
+  ): Promise<[number, string, OutData | undefined]> {
     const errRes = this.validateandReturnErrRes(inData);
     if (errRes) return errRes;
 
-    if (inData.includeToken) return await this.verifyUserAndReturnTokenIfVerifed(inData);
+    if (inData.includeToken)
+      return await this.verifyUserAndReturnTokenIfVerifed(inData);
     return await this.verifyUserAndReturnIfVerifed(inData);
   }
 
@@ -34,21 +41,28 @@ export class Service {
   ): Promise<[number, string, OutData | undefined]> {
     const userData = await this.dbService.verifyUserAndReturnUserData(inData);
     if (userData) {
-      const token = this.authManager.sign({ userId: userData });
-      return [200, "Your email has been successfully verified", { token }];
+      const tokenData = this.authManager.sign({ userId: userData });
+      return [
+        200,
+        "Your email has been successfully verified",
+        { token: tokenData.token, expires_in: tokenData.expiresIn },
+      ];
     }
     return [400, "Your email was not succesfully verified", undefined];
   }
 
   private async verifyUserAndReturnIfVerifed(
     inData: ServiceInData
-  ): Promise<[number, string, undefined]> {
+  ): Promise<[number, string, OutData | undefined]> {
     const isVerifed = await this.dbService.verifyUserAndReturnIfVerifed(inData);
-    if (isVerifed) return [200, "Your email has been successfully verified", undefined];
+    if (isVerifed)
+      return [200, "Your email has been successfully verified", {}];
     return [400, "Your email was not succesfully verified", undefined];
   }
 
-  private validateandReturnErrRes(inData: ServiceInData): [number, string, undefined] | undefined {
+  private validateandReturnErrRes(
+    inData: ServiceInData
+  ): [number, string, undefined] | undefined {
     const validator = new InDataValidator(inData);
     const errMsg = validator.validate();
     if (errMsg) return [400, errMsg, undefined];

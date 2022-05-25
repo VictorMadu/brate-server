@@ -1,7 +1,7 @@
 import { Injectable } from "nist-core/injectables";
 import { AuthManagerService } from "../../../utils/auth-manager.service";
 import { GetAlertListDbService } from "./get-alert-list.db";
-import { Response } from "./interface";
+import { Res2XX } from "./interface";
 
 interface ServiceInData {
   authorization: string;
@@ -14,7 +14,7 @@ interface ServiceInData {
 export class Service {
   constructor(private dbService: GetAlertListDbService, private authManager: AuthManagerService) {}
 
-  async handle(inData: ServiceInData): Promise<[number, string, Response["data"] | undefined]> {
+  async handle(inData: ServiceInData): Promise<[number, string, Res2XX["data"] | undefined]> {
     const userId = this.authManager.parse(inData.authorization).userId;
     if (!userId) return [401, "", undefined];
 
@@ -32,7 +32,7 @@ export class Service {
       {
         alerts: result,
         pagination: {
-          skipped: inData.page_count,
+          skipped: inData.page_offset,
           page_count: result.length,
         },
       },

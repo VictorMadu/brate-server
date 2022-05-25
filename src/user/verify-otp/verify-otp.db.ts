@@ -2,7 +2,7 @@ import { Injectable } from "nist-core/injectables";
 import { PostgresDbService } from "../_utils/user.db.service";
 import { PoolClient } from "pg";
 import { users, user_verification_details } from "../../utils/postgres-db-types/erate";
-import { PostgresHeplper } from "../../utils/postgres-helper";
+import { PostgresHeplper, PostgresPoolClientRunner } from "../../utils/postgres-helper";
 import { InnerKeys, InnerValue } from "ts-util-types";
 import { get } from "lodash";
 
@@ -15,70 +15,103 @@ const t = "__t";
 
 @Injectable()
 export class DbService {
-  psql!: PoolClient;
-  constructor(private db: PostgresDbService, private helper: PostgresHeplper) {}
+  constructor(
+    private db: PostgresDbService,
+    private helper: PostgresHeplper,
+    private runner: PostgresPoolClientRunner
+  ) {}
 
   private onReady() {
-    this.psql = this.db.getPsql();
+    this.runner.setPsql(this.db.getPsql());
   }
 
   async verifyUserAndReturnUserData(inData: InData) {
-    const result = await this.psql.query<{ userId: string | null }>(`
-      ${this.basicQuery(t, inData)}
-      RETURNING 
-        ${this.getUserDetailsIfMatched(t)} AS userId
-    `);
-
-    return this.helper.getPropFromFirstRow(result, "userId");
+    return await this.runner.runQuery(
+      async (psql) => await new VerificationUserRunner(psql, this.helper).runAndReturnUserId(inData)
+    );
   }
 
   async verifyUserAndReturnIfVerifed(inData: InData) {
-    const result = await this.psql.query<{ isMatched: boolean }>(`
-      ${this.basicQuery(t, inData)}
-      RETURNING 
-        ${this.isMatchedQuery()} AS isMatched
-    `);
+    return await this.runner.runQuery(
+      async (psql) =>
+        await new VerificationUserRunner(psql, this.helper).runAndReturnIsVerified(inData)
+    );
+  }
+}
 
-    return this.helper.getPropFromFirstRow(result, "isMatched");
+class VerificationUserRunner {
+  constructor(private psql: PoolClient, private helper: PostgresHeplper) {}
+
+  async runAndReturnUserId(inData: InData) {
+    const result = await this.psql.query<{ user_id: string | null }>(`
+    ${this.basicQuery(t, inData)}
+    RETURNING 
+      ${this.getUserDetailsIfMatched(t)} AS user_id
+  `);
+
+    return this.helper.getFromFirstRow(result, "user_id");
+  }
+
+  async runAndReturnIsVerified(inData: InData) {
+    const result = await this.psql.query<{ is_matched: boolean }>(`
+    ${this.basicQuery(t, inData)}
+    RETURNING 
+      ${this.isMatchedQuery()} AS is_matched
+  `);
+    return this.helper.getFromFirstRow(result, "is_matched");
   }
 
   private basicQuery(userTable: string, inData: InData) {
+    const uvd = user_verification_details;
     return ` 
       UPDATE 
-        ${user_verification_details.$$NAME}
+        ${uvd.$$NAME}
       SET 
-        ${this.setQuery(this.helper.sanitize(inData.otp))}
+        ${this.setQuery(this.helper.sanitize(inData.otp))}  
       FROM 
         ${users.$$NAME} AS ${userTable}
       WHERE 
         ${userTable}.${users.email} = ${this.helper.sanitize(inData.email)} AND   
-        ${userTable}.${users.verification_details} [
+        ${uvd.$$NAME}.${uvd.user_verification_details_id} = ${userTable}.${
+      users.verification_details
+    } [
           array_length(
-            ${userTable}.${users.verification_details}
+            ${userTable}.${users.verification_details}, 
+            1
           )
-        ] = ${user_verification_details.user_verification_details_id}
+        ] AND 
+        COALESCE (
+         ( ${uvd.$$NAME}.${uvd.one_time_password} <> ${uvd.$$NAME}.${uvd.tried_passwords} [
+            array_length(
+              ${uvd.$$NAME}.${uvd.tried_passwords}, 
+              1
+            )
+          ]), TRUE
+        )
     `;
   }
 
   private setQuery(sanitizedTriedOTP: string) {
+    const uvd = user_verification_details;
     return `
-      ${user_verification_details.tried_passwords} = array_append(
-        ${user_verification_details.tried_passwords},
+      ${uvd.tried_passwords} = array_append(
+        ${uvd.tried_passwords},
         ${sanitizedTriedOTP}
       ),
-      ${user_verification_details.tried_passwords_at} = array_append(
-        ${user_verification_details.tried_passwords_at},
+        ${uvd.tried_passwords_at} = array_append(
+          ${uvd.tried_passwords_at},
         NOW()
       )
     `;
   }
 
   private isMatchedQuery() {
+    const uvd = user_verification_details;
     return `
-      ${user_verification_details.one_time_password} = 
-      ${user_verification_details.tried_passwords_at}[
+      ${uvd.$$NAME}.${uvd.one_time_password} = 
+      ${uvd.$$NAME}.${uvd.tried_passwords}[
         array_length(
-          ${user_verification_details.tried_passwords_at}
+          ${uvd.$$NAME}.${uvd.tried_passwords}, 1
           )
       ]
     `;

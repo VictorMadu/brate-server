@@ -4,10 +4,11 @@ import * as HttpParams from "nist-fastify-adapter/injectables/http.param.decorat
 import { Service } from "./sign-up.service";
 import { ResSend } from "../../_interfaces";
 
-import { Body, Response } from "./interface";
+import { Body, ResXXX } from "./interface";
 import { bodySchema } from "./schema/body.schema";
-import { responseSchema } from "./schema/response.schema";
+import { resxxxSchema } from "./schema/response.schema";
 import { SIGN_UP } from "../_constant/routes";
+import { FastifyRequest, FastifyReply } from "fastify";
 
 @HttpController(SIGN_UP)
 export class Controller {
@@ -15,7 +16,9 @@ export class Controller {
 
   @HttpMethods.Schema({
     body: bodySchema,
-    response: responseSchema,
+    response: {
+      xxx: resxxxSchema,
+    },
   })
   @HttpMethods.Post()
   async route(@HttpParams.Body() body: Body, @HttpParams.Send() send: ResSend) {
@@ -26,7 +29,7 @@ export class Controller {
       password: body.password,
     });
 
-    send<Response>(code, {
+    send<ResXXX>(code, {
       status: code < 300,
       msg,
     });

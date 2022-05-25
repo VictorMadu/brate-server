@@ -1,6 +1,4 @@
-import { FromSchema } from "json-schema-to-ts";
-
-export const responseSchema = {
+export const res2XXSchema = {
   type: "object",
   properties: {
     status: { type: "boolean" },
@@ -8,9 +6,27 @@ export const responseSchema = {
     data: {
       type: "object",
       properties: {
-        delete_count: { type: "number" },
+        deleted_count: { type: "number" },
       },
-      required: ["delete_count"],
+      required: ["deleted_count"],
+      additionalProperties: false,
+    },
+  },
+  required: ["status", "msg"],
+  additionalProperties: false,
+} as const;
+
+export const res4XXSchema = {
+  type: "object",
+  properties: {
+    status: { type: "boolean" },
+    msg: { type: "string" },
+    data: {
+      type: "object",
+      properties: {
+        deleted_count: { type: "number" },
+      },
+      required: ["deleted_count"],
       additionalProperties: false,
     },
   },

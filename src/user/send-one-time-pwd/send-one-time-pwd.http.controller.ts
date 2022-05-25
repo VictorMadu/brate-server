@@ -4,9 +4,9 @@ import * as HttpParams from "nist-fastify-adapter/injectables/http.param.decorat
 import { Service } from "./send-one-time-pwd.service";
 import { ResSend } from "../../_interfaces";
 
-import { Params, Response } from "./interface";
+import { Params, ResXXX } from "./interface";
 import { paramsSchema } from "./schema/param.schema";
-import { responseSchema } from "./schema/response.schema";
+import { resxxxSchema } from "./schema/response.schema";
 import { SEND_OTP } from "../_constant/routes";
 
 @HttpController(SEND_OTP)
@@ -15,7 +15,9 @@ export class Controller {
 
   @HttpMethods.Schema({
     params: paramsSchema,
-    response: responseSchema,
+    response: {
+      xxx: resxxxSchema,
+    },
   })
   @HttpMethods.Post("/:email")
   async route(@HttpParams.Send() send: ResSend, @HttpParams.Params() params: Params) {
@@ -23,7 +25,7 @@ export class Controller {
       email: params.email,
     });
 
-    send<Response>(code, {
+    send<ResXXX>(code, {
       status: code < 300,
       msg,
     });

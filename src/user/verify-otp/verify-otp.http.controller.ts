@@ -4,9 +4,9 @@ import * as HttpParams from "nist-fastify-adapter/injectables/http.param.decorat
 import { Service } from "./verify-otp.service";
 import { ResSend } from "../../_interfaces";
 
-import { Body, Params, Response } from "./interface";
+import { Body, Params, Res2xx, Res4xx } from "./interface";
 import { paramsSchema } from "./schema/param.schema";
-import { responseSchema } from "./schema/response.schema";
+import { res2xxSchema, res4xxSchema } from "./schema/response.schema";
 import { VERFIY_OTP } from "../_constant/routes";
 import { bodySchema } from "./schema/body.schema";
 
@@ -19,7 +19,10 @@ export class Controller {
   @HttpMethods.Schema({
     params: paramsSchema,
     body: bodySchema,
-    response: responseSchema,
+    response: {
+      "2xx": res2xxSchema,
+      // "4xx": res4xxSchema,
+    },
   })
   @HttpMethods.Post("/:email")
   async route(
@@ -33,8 +36,8 @@ export class Controller {
       includeToken: body.include_token ?? DEFAULT_INCLUDE_TOKEN,
     });
 
-    send<Response>(code, {
-      status: code < 300,
+    return send<Res2xx | Res4xx>(code, {
+      status: code < 400,
       msg,
       data,
     });
