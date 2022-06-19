@@ -1,3 +1,4 @@
+// checking if process.env.NODE_ENV is 'test'
 console.log("env", process.env.NODE_ENV);
 
 describe("", () => {
