@@ -1,22 +1,50 @@
 import { clamp } from "lodash";
+import { OrWithPromise } from "ts-util-types";
 import { sleep } from "./funcs";
 
-interface IncrementStrategy {
+export interface IncrementStrategy {
   getNextIncr(): number;
   hasReachedLimit(): boolean;
 }
 
-export class DiminishingRetry {
+export class DiminishingRetry<T extends Exclude<unknown, undefined>> {
+  private result: T | undefined = undefined;
   constructor(private incrementStrategy: IncrementStrategy) {}
 
-  async run<T extends unknown>(func: () => T): Promise<T | undefined> {
-    let result: T | undefined = undefined;
-    while (!this.incrementStrategy.hasReachedLimit()) {
-      result = await func();
-      if (result != null) break;
-      await sleep(this.incrementStrategy.getNextIncr());
+  static async getReturnValue<T extends Exclude<unknown, undefined>>(
+    incrementStrategy: IncrementStrategy,
+    func: () => OrWithPromise<T | undefined>
+  ) {
+    const diminishingRetry = new DiminishingRetry<T>(incrementStrategy);
+    await diminishingRetry.run(func);
+    return diminishingRetry.getFuncReturnValue();
+  }
+
+  async run(func: () => OrWithPromise<T | undefined>) {
+    this.result = undefined;
+
+    while (this.hasNotReachedRetryLimit() && this.hasFuncReturnedValue()) {
+      this.result = await func();
+      await this.waitBeforeRetry();
     }
-    return result;
+
+    return this;
+  }
+
+  hasFuncReturnedValue() {
+    return this.result != null;
+  }
+
+  getFuncReturnValue() {
+    return this.result;
+  }
+
+  private hasNotReachedRetryLimit() {
+    return !this.incrementStrategy.hasReachedLimit();
+  }
+
+  private async waitBeforeRetry() {
+    return sleep(this.incrementStrategy.getNextIncr());
   }
 }
 

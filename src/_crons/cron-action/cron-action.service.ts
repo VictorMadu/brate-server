@@ -4,7 +4,7 @@ import { CronJob } from "cron";
 import { ConfigService } from "../../utils/config-service";
 import { DbService } from "./update-parallel-rate.db";
 import { forEach } from "lodash";
-import { DiminishingRetry, MultipleIncr } from "../../utils/diminishing-retry";
+import { DiminishingRetry, IncrementStrategy, MultipleIncr } from "../../utils/diminishing-retry";
 import { NotificationTriggerAndFunctionDbService } from "./triggers.db";
 
 type DbInData = {
@@ -61,24 +61,38 @@ export class CronActionService {
   }
 
   private async setAndGetCurrencyNamesInDbWithRetry(): Promise<string[] | undefined> {
-    const diminishingRetry = new DiminishingRetry(new MultipleIncr(START_TIME, 2, END_TIME));
+    const incrementStrategy = new MultipleIncr(START_TIME, 2, END_TIME);
+    const func = () => this.setAndGetCurrencyNamesInDb();
 
-    return await diminishingRetry.run(async () => await this.setAndGetCurrencyNamesInDb());
+    return this.getFuncValueWithRetries(incrementStrategy, func);
   }
 
   private createCurrencyParallelRateUpdateCron() {
-    const cronDiminishingRetry = new DiminishingRetry(new MultipleIncr(START_TIME, STEP, END_TIME));
+    const func = () => this.getNewParallelCurrencyRate();
     return new CronJob("50 * * * * *", () => {
       console.log("Running Cron Job `getNewParallelCurrencyRate`");
-      this.getNewParallelCurrencyRate();
+      this.getFuncValueWithRetries(this.getIncrementStrategyForCron(), func);
     });
   }
 
   private createDeleteExpiredNotificationCron() {
+    const func = () => this.notificationDbService.deleteExpiredNotification();
+
     return new CronJob("50 * * * * *", () => {
       console.log("Running Cron Job `notificationDbService.deleteExpiredNotification`");
-      this.notificationDbService.deleteExpiredNotification();
+      this.getFuncValueWithRetries(this.getIncrementStrategyForCron(), func);
     });
+  }
+
+  private getFuncValueWithRetries<T extends Exclude<unknown, undefined>>(
+    incrementStrategy: IncrementStrategy,
+    func: () => T
+  ) {
+    return <Promise<T | undefined>>DiminishingRetry.getReturnValue(incrementStrategy, func);
+  }
+
+  private getIncrementStrategyForCron() {
+    return new MultipleIncr(START_TIME, STEP, END_TIME);
   }
 
   private async setAndGetCurrencyNamesInDb() {
