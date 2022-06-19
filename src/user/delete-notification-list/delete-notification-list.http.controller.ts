@@ -12,31 +12,31 @@ import { DELETE_NOTIFICATIONS } from "../_constant/routes";
 
 @HttpController(DELETE_NOTIFICATIONS)
 export class Controller {
-  constructor(private service: Service) {}
+    constructor(private service: Service) {}
 
-  @HttpMethods.Schema({
-    headers: headerSchema,
-    querystring: querySchema,
-    // response: {
-    //   '2xx': res2xxSchema,
-    //   '4xx': res4xxSchema,
-    // },
-  })
-  @HttpMethods.Delete()
-  async route(
-    @HttpParams.Headers() headers: Headers,
-    @HttpParams.Query() query: Query,
-    @HttpParams.Send() send: ResSend
-  ) {
-    const [code, msg, payload] = await this.service.handle({
-      authToken: headers.authorization,
-      ids: query.ids,
-    });
+    @HttpMethods.Schema({
+        headers: headerSchema,
+        querystring: querySchema,
+        // response: {
+        //   '2xx': res2xxSchema,
+        //   '4xx': res4xxSchema,
+        // },
+    })
+    @HttpMethods.Delete()
+    async route(
+        @HttpParams.Headers() headers: Headers,
+        @HttpParams.Query() query: Query,
+        @HttpParams.Send() send: ResSend
+    ) {
+        const [code, msg, payload] = await this.service.handle({
+            authToken: headers.authorization,
+            ids: query.ids,
+        });
 
-    send<Res2xx | Res4xx>(code, {
-      status: code < 300,
-      msg,
-      data: payload,
-    });
-  }
+        send<Res2xx | Res4xx>(code, {
+            status: code < 300,
+            msg,
+            data: payload,
+        });
+    }
 }
