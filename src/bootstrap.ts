@@ -1,5 +1,5 @@
 import Fastify from "fastify";
-import { ConfigService } from "./utils/config-factory.service";
+import { ConfigService } from "./utils/config-service";
 import { AppStarter } from "./start-app";
 
 const fastify = Fastify({

@@ -4,7 +4,7 @@ import v from "validator";
 import { cloneDeep } from "lodash";
 import { generateOneTimePwd } from "../../utils/funcs";
 import bcrypt from "bcryptjs";
-import { ConfigService } from "../../utils/config-factory.service";
+import { ConfigService } from "../../utils/config-service";
 
 interface ServiceInData {
   name: string;

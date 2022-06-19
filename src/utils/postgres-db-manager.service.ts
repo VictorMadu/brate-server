@@ -1,6 +1,6 @@
 import { Injectable, Inject } from "nist-core/injectables";
 import postgres from "postgres";
-import { ConfigService } from "./config-factory.service";
+import { ConfigService } from "./config-service";
 import { PostgresKeys } from "./interfaces/postgres-instance-base.interface";
 import { Pool, PoolClient } from "pg";
 

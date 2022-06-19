@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "nist-core/injectables";
-import { ConfigService } from "./config-factory.service";
+import { ConfigService } from "./config-service";
 import { IAuthHeader, UserData } from "./interfaces/auth-manager.inteface";
 import * as jwt from "jsonwebtoken";
 
@@ -35,9 +35,7 @@ export class AuthManagerService {
     try {
       if (!token) return DEFAULT_PARSED_TOKEN;
       const parsedToken = this.verifyAndParseToken(token);
-      return this.isParsedTokenExpired(parsedToken)
-        ? DEFAULT_PARSED_TOKEN
-        : parsedToken;
+      return this.isParsedTokenExpired(parsedToken) ? DEFAULT_PARSED_TOKEN : parsedToken;
     } catch (error) {
       return DEFAULT_PARSED_TOKEN;
     }
@@ -45,8 +43,7 @@ export class AuthManagerService {
 
   private verifyAndParseToken(token: string) {
     const [bearer, mainToken] = token.split(" ") as [string, string];
-    return jwt.verify(mainToken, this.jwtSecretKey) as jwt.JwtPayload &
-      PartialUserData;
+    return jwt.verify(mainToken, this.jwtSecretKey) as jwt.JwtPayload & PartialUserData;
   }
 
   private isParsedTokenExpired(parsedToken: jwt.JwtPayload) {
