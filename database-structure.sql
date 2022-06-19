@@ -120,6 +120,7 @@ ALTER TABLE customers ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
 ALTER TABLE sellers ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
 ALTER TABLE parallel_rates ADD FOREIGN KEY(currency_id) REFERENCES currencies(currency_id);
 ALTER TABLE black_rates ADD  FOREIGN KEY(seller_id) REFERENCES sellers(seller_id);
+
 ALTER TABLE black_rates 
 ADD FOREIGN KEY(base) REFERENCES currencies(currency_id),
 ADD FOREIGN KEY(quota) REFERENCES currencies(currency_id);
