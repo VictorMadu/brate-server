@@ -1,4 +1,3 @@
-import { Bootstrap } from "nist-fastify-adapter/bootstrap";
 import Fastify from "fastify";
 import { ConfigService } from "./utils/config-factory.service";
 import { AppStarter } from "./start-app";
