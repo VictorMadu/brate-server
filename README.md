@@ -1,11 +1,11 @@
 # brate-server
 
 ## HOW TO RUN
-- **Create config.yaml, config.dev.yaml and config.test.yaml files in the root directory.** You can find an example of how the config yaml files should look like [here](.github\brate-config-example.png) 
+- **Create config.yaml, config.dev.yaml and config.test.yaml files in the root directory**.You can find an example of how the config yaml files should look like [here](.github\brate-config-example.png) 
 
 - **Run `yarn install` or `npm install` if you are using npm** to install dependencies
 
-- ** Run app **
+- **Run app**
   For development: `yarn dev` or `npm run dev`
   For testing: `yarn test` or `npm run test`
   For production: `yarn start` or `npm start`
