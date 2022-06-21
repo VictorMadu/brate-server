@@ -30,6 +30,7 @@
     "rimraf": "^3.0.2",
     "ts-jest": "^27.1.3",
     "ts-node": "^10.4.0",
+    "ts-util-types": "^0.2.0-alpha",
     "tslint": "^6.1.3",
     "typescript": "^4.5.4"
   },
