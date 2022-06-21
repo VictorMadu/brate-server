@@ -34,8 +34,11 @@ Other folders include:
  
 - [auth-manager](src\utils\auth-manager.service.ts): For authenticating and authorization users using [JWT](https://jwt.io/introduction).
 
-
 I also created some PLPGSQL functions to perform complex database tasks such as Safe deleting (setting deleted_at field) expired notifications, a function for a trigger to find alerts that reached the target rate both parallel and the black market, and automatic notification generation after parallel and black alert trigger, wallet transactions (currency exchange, currency funding, currency withdrawal)
+
+The application is integrated with the [Fixers API]() to provide an hourly update of parallel rate of over 200+ currencies using a cron job. The obtained rates is stored in the database. The insertion into the database triggers chains of PLPGSQL triggers for features like: currency rate alerts, notification generation for alerts that reached target rate and soft deletion of expired notifications.
+
+When a user selects the `remove_trade_notification_after`, `remove_price_alert_notification_after` or `remove_fund_notification_after` fields of the `web_clients` table, notifications belonging to the user will be automatically soft deleted for the corresponding type of notifications after its lifetime has passed the set time for removal.
 
 LOL…I know my design is bad but I was trying out and brainstorming on different folder structures and architecture. After much thinking, and reading about clean architecture, and hexagonal architecture, I think separating into: controller, service, and repository (or another better name).
 
