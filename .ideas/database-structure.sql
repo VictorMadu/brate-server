@@ -10,6 +10,12 @@ CREATE TABLE IF NOT EXISTS users (
   verification_details uuid[] NOT NULL DEFAULT ARRAY[]::uuid[]
 );
 
+CREATE TABLE IF NOT EXISTS currencies (
+  currency_id VARCHAR(3) NOT NULL PRIMARY KEY,
+  full_name VARCHAR(64)
+);
+
+
 CREATE TABLE IF NOT EXISTS user_favourite_currency_pairs (
   user_id  uuid NOT NULL,
   base CHAR(3) NOT NULL,
@@ -18,6 +24,8 @@ CREATE TABLE IF NOT EXISTS user_favourite_currency_pairs (
   unfavourite_at TIMESTAMPTZ[] NOT NULL DEFAULT ARRAY[]::TIMESTAMPTZ[],
   PRIMARY KEY (user_id, base, quota)
 );
+
+ALTER TABLE user_favourite_currency_pairs ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
 
 INSERT INTO user_favourite_currency_pairs (user_id, base, quota)
 VALUES ('c8d8e578-eed8-4c8e-a6b2-2e1eaf75b46b', 'USD', 'EUR');
@@ -37,6 +45,8 @@ CREATE TABLE IF NOT EXISTS sellers (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE sellers ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
+
 CREATE TABLE IF NOT EXISTS customers (
   customer_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY, 
   user_id uuid UNIQUE NOT NULL,
@@ -44,12 +54,15 @@ CREATE TABLE IF NOT EXISTS customers (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE customers ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
 
 CREATE TABLE IF NOT EXISTS parallel_rates (
   time TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   rate NUMERIC(16,8), 
   currency_id VARCHAR(3) NOT NULL
 );
+
+ALTER TABLE parallel_rates ADD FOREIGN KEY(currency_id) REFERENCES currencies(currency_id);
 
 
 CREATE TABLE IF NOT EXISTS black_rates (
@@ -59,6 +72,12 @@ CREATE TABLE IF NOT EXISTS black_rates (
   base VARCHAR(3) NOT NULL,
   quota VARCHAR(3) NOT NULL
 );
+
+ALTER TABLE black_rates ADD  FOREIGN KEY(seller_id) REFERENCES sellers(seller_id);
+
+ALTER TABLE black_rates 
+ADD FOREIGN KEY(base) REFERENCES currencies(currency_id),
+ADD FOREIGN KEY(quota) REFERENCES currencies(currency_id);
 
 CREATE TABLE IF NOT EXISTS price_alerts (
   price_alert_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -74,6 +93,7 @@ CREATE TABLE IF NOT EXISTS price_alerts (
   deleted_at TIMESTAMPTZ
 );
 
+ALTER TABLE price_alerts ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
 
 CREATE TABLE IF NOT EXISTS transactions (
   transaction_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -84,10 +104,11 @@ CREATE TABLE IF NOT EXISTS transactions (
   transaction_with_id uuid NOT NULL  -- NULL means self funded
 );
 
-CREATE TABLE IF NOT EXISTS currencies (
-  currency_id VARCHAR(3) NOT NULL PRIMARY KEY,
-  full_name VARCHAR(64)
-);
+ALTER TABLE transactions 
+ADD FOREIGN KEY(currency_id) REFERENCES currencies(currency_id),
+ADD FOREIGN KEY(user_id) REFERENCES users(user_id), 
+ADD FOREIGN KEY (transaction_with_id) REFERENCES users(user_id);
+
 
 CREATE TABLE IF NOT EXISTS web_clients (
   web_client_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -103,7 +124,8 @@ CREATE TABLE IF NOT EXISTS web_clients (
 
 );
 
-user_id, seller_id, web_clients
+ALTER TABLE web_clients 
+ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
 
 CREATE TABLE IF NOT EXISTS notifications (
   notification_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -114,22 +136,5 @@ CREATE TABLE IF NOT EXISTS notifications (
   type CHAR(1) NOT NULL CHECK(type IN ('P',  'T', 'F'))   -- `P` => Price Alert `T` => Trade  `F` => Fund 
 );
 
-
-ALTER TABLE user_favourite_currency_pairs ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
-ALTER TABLE customers ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
-ALTER TABLE sellers ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
-ALTER TABLE parallel_rates ADD FOREIGN KEY(currency_id) REFERENCES currencies(currency_id);
-ALTER TABLE black_rates ADD  FOREIGN KEY(seller_id) REFERENCES sellers(seller_id);
-
-ALTER TABLE black_rates 
-ADD FOREIGN KEY(base) REFERENCES currencies(currency_id),
-ADD FOREIGN KEY(quota) REFERENCES currencies(currency_id);
-ALTER TABLE price_alerts ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
-
-ALTER TABLE transactions 
-ADD FOREIGN KEY(currency_id) REFERENCES currencies(currency_id),
-ADD FOREIGN KEY(user_id) REFERENCES users(user_id), 
-ADD FOREIGN KEY (transaction_with_id) REFERENCES users(user_id);
-
-ALTER TABLE web_clients 
+ALTER TABLE notifications 
 ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
