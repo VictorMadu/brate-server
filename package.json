@@ -9,7 +9,6 @@
     "dev": "nodemon --config nodemon.json",
     "dev:start": "ts-node ./src/index.ts",
     "test": "jest",
-    "test:init": "ts-jest config:init",
     "test:watch": "jest --watchAll",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand"
