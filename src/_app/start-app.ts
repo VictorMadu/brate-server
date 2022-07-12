@@ -1,72 +1,45 @@
 import Bootstrap from "victormadu-nist-fastify-adapter";
 import { ConfigService } from "../utils/config-service";
-import { FastifyManager } from "_app/fastify-manager";
+import { FastifyManager } from "./fastify-manager";
 
-import "./currency/controller-handlers";
-import "./user";
-import "./market";
-import "./wallet";
-import "./_ws";
-import "./_crons";
+// import "./currency/controller-handlers";
+// import "./user";
+// import "./market";
+// import "./wallet";
+// import "./_ws";
+// import "./_crons";
 
 export class AppStarter {
     bootstrap: Bootstrap;
-    address: string;
-    port: number;
 
-    private constructor(private fastifyManager: FastifyManager, config: ConfigService) {
+    private constructor(private fastifyManager: FastifyManager) {
         this.bootstrap = new Bootstrap(this.fastifyManager.getFastify());
-        this.address = config.get("app.address");
-        this.port = config.get("app.port");
     }
 
-    static startApp(fastifyManager: FastifyManager, config: ConfigService) {
-        const appStarter = new AppStarter(fastifyManager, config);
-        appStarter.addCors().addOnCloseListener().startBootstrapping().startListening();
+    static startApp(fastifyManager: FastifyManager) {
+        const appStarter = new AppStarter(fastifyManager);
+        return appStarter._startApp();
     }
 
-    private addCors() {
-        const hostUrlsToAllow = /.*/;
-        this.fastifyManager.addCors({
-            origin: (origin, cb) => {
-                if (hostUrlsToAllow.test(origin)) return cb(null, true);
-                return cb(new Error("Not allowed"), false);
-            },
-        });
+    private _startApp() {
+        this.addOnCloseListeners();
+        this.startBootstrapping();
+        this.startListening();
+    }
 
-        return this;
+    private addOnCloseListeners() {
+        this.fastifyManager.addOnCloseListenerFn(() => this.bootstrap.emitClose());
     }
 
     private startBootstrapping() {
         this.bootstrap.load();
-        return this;
-    }
-
-    private addOnCloseListener() {
-        this.fastifyManager.addOnCloseAction(() => this.handleClose());
-        return this;
-    }
-
-    private handleClose() {
-        () => this.bootstrap.emitClose();
     }
 
     private startListening() {
-        this.fastifyManager
-            .addOnListenFn(async (err, address) => {
-                if (err) return this.shutDownServer();
-                return this.handleStart(address);
-            })
-            .listen(this.port, this.address);
-        return this;
+        this.fastifyManager.listen().catch(() => this.shutDownServer());
     }
 
     private shutDownServer() {
         process.exit(1);
-    }
-
-    private async handleStart(address: string) {
-        await this.bootstrap.emitStart();
-        console.log("Server listening at", address);
     }
 }

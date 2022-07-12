@@ -1,11 +1,11 @@
 import "reflect-metadata";
 
-import { FastifyManager } from "_app/fastify-manager";
-import { AppStarter } from "./_app/start-app";
-import { ConfigService } from "utils/config-service";
+import { FastifyManager, AppStarter } from "./_app";
+import { ConfigService } from "./utils";
 
 main();
 
-function main() {
-    AppStarter.startApp(new FastifyManager(), new ConfigService());
+async function main() {
+    const fastifyManager = await FastifyManager.getInstance(new ConfigService());
+    AppStarter.startApp(fastifyManager);
 }
