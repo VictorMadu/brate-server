@@ -11,23 +11,26 @@ import { SEND_OTP } from "../_constant/routes";
 
 @HttpController(SEND_OTP)
 export class Controller {
-  constructor(private service: Service) {}
+    constructor(private service: Service) {}
 
-  @HttpMethods.Schema({
-    params: paramsSchema,
-    response: {
-      xxx: resxxxSchema,
-    },
-  })
-  @HttpMethods.Post("/:email")
-  async route(@HttpParams.Send() send: ResSend, @HttpParams.Params() params: Params) {
-    const [code, msg] = await this.service.handle({
-      email: params.email,
-    });
+    @HttpMethods.Schema({
+        params: paramsSchema,
+        response: {
+            xxx: resxxxSchema,
+        },
+    })
+    @HttpMethods.Post("/:email")
+    async route(
+        @HttpParams.Send() send: ResSend,
+        @HttpParams.Params() params: Params
+    ) {
+        const [code, msg] = await this.service.handle({
+            email: params.email,
+        });
 
-    send<ResXXX>(code, {
-      status: code < 300,
-      msg,
-    });
-  }
+        send<ResXXX>(code, {
+            status: code < 300,
+            msg,
+        });
+    }
 }
