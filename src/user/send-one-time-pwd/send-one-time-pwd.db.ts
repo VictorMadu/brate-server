@@ -1,6 +1,6 @@
 import { Injectable } from "victormadu-nist-core";
 import { PostgresDbService } from "../_utils/user.db.service";
-import { PoolClient, QueryResult } from "pg";
+import { PoolClient } from "pg";
 import { users, user_verification_details } from "../../utils/postgres-db-types/erate";
 import { PostgresHeplper, PostgresPoolClientRunner } from "../../utils/postgres-helper";
 
@@ -57,7 +57,6 @@ export class UserVerificationCreator {
         );
 
         if (!userDetails) return undefined;
-
         return {
             oneTimePwd: verificationDetails.one_time_pwd,
             email: userDetails.email,
