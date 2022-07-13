@@ -1,4 +1,4 @@
-import { Injectable } from "nist-core/injectables";
+import { Injectable } from "victormadu-nist-core";
 import { PostgresDbService } from "../_utils/user.db.service";
 import { PoolClient, QueryResult } from "pg";
 import { users, user_verification_details } from "../../utils/postgres-db-types/erate";
@@ -69,38 +69,39 @@ export class UserVerificationCreator {
 
         try {
             const result = await this.psql.query<VerificationOutData>(`
-    INSERT INTO
-      ${user_verification_details.$$NAME}
-      (
-        ${user_verification_details.one_time_password}
-      )
-    SELECT 
-      ${this.helper.sanitize(this.inData.one_time_pwd)}
-    WHERE
-    NOT EXISTS (
-      -- Select 1, If user has been verified
-      SELECT 
-        1 
-      FROM 
-        ${users.$$NAME} as u
-      LEFT JOIN 
-        ${uvd.$$NAME} as uvd
-      ON 
-        -- Check if user last verification_details matches the user_verification_details_id
-      u.${users.verification_details} [
-        array_length(u.${users.verification_details}, 1)
-      ] = uvd.${uvd.user_verification_details_id}
+            INSERT INTO
+              ${user_verification_details.$$NAME}
+              (
+                ${user_verification_details.one_time_password}
+              )
+            SELECT 
+              ${this.helper.sanitize(this.inData.one_time_pwd)}
+            WHERE
+            NOT EXISTS (
+              -- Return 1, If user has been verified
+              SELECT 
+                1 
+              FROM 
+                ${users.$$NAME} as u
+              LEFT JOIN 
+                ${uvd.$$NAME} as uvd
+              ON 
+                -- Check if user last verification_details matches the user_verification_details_id
+              u.${users.verification_details} [
+                array_length(u.${users.verification_details}, 1)
+              ] = uvd.${uvd.user_verification_details_id}
 
-      WHERE
-        ${users.email} = ${this.helper.sanitize(this.inData.email)} AND
-        uvd.${uvd.one_time_password} = uvd.${uvd.tried_passwords} [
-        array_length(uvd.${uvd.tried_passwords}, 1)
-      ]
-    )
-    RETURNING 
-      ${user_verification_details.user_verification_details_id} as id,
-      ${user_verification_details.one_time_password} as one_time_pwd  
-  `);
+              WHERE
+                ${users.email} = ${this.helper.sanitize(this.inData.email)} AND
+                -- Check if corrrect OTP was entered in last try
+                uvd.${uvd.one_time_password} = uvd.${uvd.tried_passwords} [
+                array_length(uvd.${uvd.tried_passwords}, 1)
+              ]
+            )
+            RETURNING 
+              ${user_verification_details.user_verification_details_id} as id,
+              ${user_verification_details.one_time_password} as one_time_pwd  
+          `);
             console.log("createVerificationAndReturnDetails result", result);
             return this.helper.getFirstRow(result);
         } catch (error) {

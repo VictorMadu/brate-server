@@ -2,8 +2,8 @@ import Bootstrap from "victormadu-nist-fastify-adapter";
 import { ConfigService } from "../utils/config-service";
 import { FastifyManager } from "./fastify-manager";
 
+import "../user";
 // import "./currency/controller-handlers";
-// import "./user";
 // import "./market";
 // import "./wallet";
 // import "./_ws";
