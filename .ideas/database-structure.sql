@@ -5,10 +5,13 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(64) UNIQUE NOT NULL, 
   name VARCHAR(64) NOT NULL,
   password VARCHAR(64) NOT NULL,
-  phone VARCHAR(20) NOT NULL,
+  phone VARCHAR(16) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   verification_details uuid[] NOT NULL DEFAULT ARRAY[]::uuid[]
 );
+
+-- About the table
+-- About each fields and data type and why the field and datatype
 
 CREATE TABLE IF NOT EXISTS currencies (
   currency_id VARCHAR(3) NOT NULL PRIMARY KEY,
@@ -27,9 +30,6 @@ CREATE TABLE IF NOT EXISTS user_favourite_currency_pairs (
 
 ALTER TABLE user_favourite_currency_pairs ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
 
-INSERT INTO user_favourite_currency_pairs (user_id, base, quota)
-VALUES ('c8d8e578-eed8-4c8e-a6b2-2e1eaf75b46b', 'USD', 'EUR');
-
 CREATE TABLE IF NOT EXISTS user_verification_details (
   user_verification_details_id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   one_time_password VARCHAR(10) NOT NULL,
@@ -46,15 +46,6 @@ CREATE TABLE IF NOT EXISTS sellers (
 );
 
 ALTER TABLE sellers ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
-
-CREATE TABLE IF NOT EXISTS customers (
-  customer_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY, 
-  user_id uuid UNIQUE NOT NULL,
-  last_checked_time TIMESTAMPTZ [] DEFAULT ARRAY[]::TIMESTAMPTZ[],
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE customers ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
 
 CREATE TABLE IF NOT EXISTS parallel_rates (
   time TIMESTAMPTZ DEFAULT NOW() NOT NULL,
