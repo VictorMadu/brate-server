@@ -33,6 +33,7 @@ export class Service {
         const userData = await this.dbService.query(inDataWithOTP);
         if (!userData) return [400, "User with email may already exists"];
 
+        // TODO: Ensure that OTP was sent to user. If it was not created, use the retry strategy we created to retry the action. If after all retries was not created, then send a failed err message to users
         await this.sendOTPToUserEmail({ email: userData.email, otp: inDataWithOTP.one_time_pwd });
         return [
             201,
