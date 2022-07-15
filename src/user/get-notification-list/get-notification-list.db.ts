@@ -48,11 +48,12 @@ export class GetAlertListDbService {
     private onReady() {
         this.runner.setPsql(this.currencyDb.getPsql());
     }
-    // TODO: Update the notification_check_at array of web_clients
     async getNotificationData(inData: InData): Promise<OutData> {
-        const queryResult = await this.runner.runQuery(
-            async (psql) => await this._getNotificationData(psql, inData)
-        );
+        const queryResult = await this.runner.runQuery(async (psql) => {
+            if (await this._editUserWebData(psql, inData))
+                return await this._getNotificationData(psql, inData);
+            return undefined;
+        });
         return queryResult ?? this.defaultNotificationData;
     }
 
@@ -65,6 +66,15 @@ export class GetAlertListDbService {
             totalFromLastCheck: totalNotificationFromLastCheck ?? 0,
             notifications,
         };
+    }
+
+    private async _editUserWebData(psql: PoolClient, inData: InData): Promise<boolean> {
+        const queryCreator = new EditUserDataQueryCreator({
+            userId: this.helper.sanitize(inData.userId),
+        });
+
+        const result = await psql.query(queryCreator.getQuery());
+        return result.rowCount != null && result.rowCount > 0;
     }
 
     private async getNotificationMsg(
@@ -139,5 +149,24 @@ export class GetAlertListDbService {
     private createWhereToQuery(to?: number) {
         if (to == null) return `TRUE`;
         return `EXTRACT(EPOCH FROM ${table.created_at}) <= ${this.helper.sanitize(to)}`;
+    }
+}
+
+class EditUserDataQueryCreator {
+    private userId: string;
+
+    constructor(sanitizedInData: { userId: string }) {
+        this.userId = sanitizedInData.userId;
+    }
+
+    getQuery() {
+        return `
+      UPDATE
+        ${web_clients.$$NAME}
+      SET
+        ${web_clients.notification_check_at} = NOW()
+      WHERE
+        ${web_clients.user_id} = ${this.userId}
+    `;
     }
 }
