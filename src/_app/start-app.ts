@@ -3,7 +3,7 @@ import { ConfigService } from "../utils/config-service";
 import { FastifyManager } from "./fastify-manager";
 
 import "../user";
-// import "./currency/controller-handlers";
+import "../currency";
 // import "./market";
 // import "./wallet";
 // import "./_ws";
