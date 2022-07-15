@@ -1,5 +1,5 @@
-import { Injectable } from "nist-core/injectables";
-import { CurrencyPostgresDbService } from "../../currency/controller-handlers/_utils/currency.db.service";
+import { Injectable } from "victormadu-nist-core";
+import { PostgresDbService } from "../_utils/user.db.service";
 import { PoolClient } from "pg";
 import { notifications } from "../../utils/postgres-db-types/erate";
 import { PostgresHeplper, PostgresPoolClientRunner } from "../../utils/postgres-helper";
@@ -7,32 +7,32 @@ import { PostgresHeplper, PostgresPoolClientRunner } from "../../utils/postgres-
 const table = notifications;
 
 interface InData {
-  userId: string;
-  ids: string[];
+    userId: string;
+    ids: string[];
 }
 
 @Injectable()
 export class GetAlertListDbService {
-  constructor(
-    private currencyDb: CurrencyPostgresDbService,
-    private helper: PostgresHeplper,
-    private runner: PostgresPoolClientRunner
-  ) {}
+    constructor(
+        private currencyDb: PostgresDbService,
+        private helper: PostgresHeplper,
+        private runner: PostgresPoolClientRunner
+    ) {}
 
-  private onReady() {
-    this.runner.setPsql(this.currencyDb.getPsql());
-  }
+    private onReady() {
+        this.runner.setPsql(this.currencyDb.getPsql());
+    }
 
-  async deleteUserNotifications(inData: InData): Promise<number> {
-    return (
-      (await this.runner.runQuery(
-        async (psql) => await this.setNotificationsToDeleteDeleteAtFieldToNow(psql, inData)
-      )) ?? 0
-    );
-  }
+    async deleteUserNotifications(inData: InData): Promise<number> {
+        return (
+            (await this.runner.runQuery(
+                async (psql) => await this.setNotificationsToDeleteDeleteAtFieldToNow(psql, inData)
+            )) ?? 0
+        );
+    }
 
-  private async setNotificationsToDeleteDeleteAtFieldToNow(psql: PoolClient, inData: InData) {
-    const result = await psql.query(`
+    private async setNotificationsToDeleteDeleteAtFieldToNow(psql: PoolClient, inData: InData) {
+        const result = await psql.query(`
     UPDATE
       ${table.$$NAME}
     SET
@@ -43,6 +43,6 @@ export class GetAlertListDbService {
       ${table.deleted_at} IS NULL
   `);
 
-    return result.rowCount;
-  }
+        return result.rowCount;
+    }
 }
