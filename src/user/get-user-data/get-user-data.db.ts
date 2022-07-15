@@ -75,13 +75,13 @@ class GetUserDataQueryCreator {
             users.email,
             "email",
             this.includeEmail,
-            this.includeCommaIfAllCondsMet(this.includePhone, this.includeName)
+            this.includeCommaIfAnyTrue(this.includePhone, this.includeName)
         )}
         ${this.addFieldIfShouldInclude(
             users.phone,
             "phone",
             this.includePhone,
-            this.includeCommaIfAllCondsMet(this.includeName)
+            this.includeCommaIfAnyTrue(this.includeName)
         )}
         ${this.addFieldIfShouldInclude(users.name, "name", this.includeName)}
       FROM
@@ -91,15 +91,11 @@ class GetUserDataQueryCreator {
     `;
     }
 
-    private includeCommaIfAllCondsMet(...conds: boolean[]) {
-        let i = 0;
-        const lenConds = conds.length;
-        while (i < lenConds) {
-            const isFalsyCond = !conds[i];
-            if (isFalsyCond) return "";
-            i++;
+    private includeCommaIfAnyTrue(...conds: boolean[]) {
+        for (let i = 0; i < conds.length; i++) {
+            if (conds[i]) return ",";
         }
-        return ",";
+        return "";
     }
 
     private addFieldIfShouldInclude(
