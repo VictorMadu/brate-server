@@ -9,5 +9,5 @@ export * as EditUserData from "./edit-user-data";
 export * as EditUserWebData from "./edit-user-web-data";
 export * as GetUserData from "./get-user-data";
 export * as GetUserWebData from "./get-user-web-data";
-// export * as GetWsTicket from "./get-ws-ticket";
+export * as GetWsTicket from "./get-ws-ticket";
 // export * as UpdateNotificationCheckTime from "./update-notification-check-time";
