@@ -7,7 +7,7 @@ type PartialUserData = Partial<UserData>;
 
 const JWT_SECRET_KEY = "jwt.secretKey";
 const DEFAULT_PARSED_TOKEN: PartialUserData = {};
-const BCRYPT_EXPIRE_IN_key = "bcrypt.expiryAfter";
+const BCRYPT_EXPIRE_IN_key = "jwt.expiryAfter";
 
 @Injectable()
 export class AuthManagerService {

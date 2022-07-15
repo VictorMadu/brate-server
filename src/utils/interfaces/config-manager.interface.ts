@@ -9,6 +9,7 @@ export interface Config {
     };
     jwt: {
         secretKey: string;
+        expiryAfter: number;
     };
     postgres: {
         host: string;
@@ -24,7 +25,6 @@ export interface Config {
     };
     bcrypt: {
         saltRounds: number;
-        expiryAfter: number;
     };
 
     currency_rate: {
