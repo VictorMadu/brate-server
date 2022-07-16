@@ -3,9 +3,9 @@ import { ConfigService } from "../utils/config-service";
 import { FastifyManager } from "./fastify-manager";
 
 import "../user";
+import "../wallet";
 import "../currency";
 // import "./market";
-// import "./wallet";
 // import "./_ws";
 // import "./_crons";
 

@@ -1,9 +1,7 @@
-import { HttpController } from "nist-fastify-adapter/injectables/http-controller";
-import * as HttpMethods from "nist-fastify-adapter/injectables/http.method.decorators";
-import * as HttpParams from "nist-fastify-adapter/injectables/http.param.decorators";
+import { HttpController, Headers, Post, Schema, Body, Send } from "victormadu-nist-fastify-adapter";
 import { Service } from "./fund-wallet.service";
 
-import { Headers, Body, ResXXX } from "./interface";
+import { Headers as ReqHeaders, Body as ReqBody, ResXXX } from "./interface";
 import { headerSchema } from "./schema/header.schema";
 import { bodySchema } from "./schema/body.schema";
 import { resxxSchema } from "./schema/response.schema";
@@ -12,30 +10,26 @@ import { FUND_WALLET } from "../_constant/routes";
 
 @HttpController(FUND_WALLET)
 export class Controller {
-  constructor(private service: Service) {}
+    constructor(private service: Service) {}
 
-  @HttpMethods.Schema({
-    headers: headerSchema,
-    body: bodySchema,
-    // response: {
-    //   xxx: resxxSchema,
-    // },
-  })
-  @HttpMethods.Post()
-  async route(
-    @HttpParams.Headers() headers: Headers,
-    @HttpParams.Body() body: Body,
-    @HttpParams.Send() send: ResSend
-  ) {
-    const [code, msg] = await this.service.handle({
-      authToken: headers.authorization,
-      amountToFund: body.amount,
-      currencyToFund: body.currency,
-    });
+    @Schema({
+        headers: headerSchema,
+        body: bodySchema,
+        // response: {
+        //   xxx: resxxSchema,
+        // },
+    })
+    @Post()
+    async route(@Headers() headers: ReqHeaders, @Body() body: ReqBody, @Send() send: ResSend) {
+        const [code, msg] = await this.service.handle({
+            authToken: headers.authorization,
+            amountToFund: body.amount,
+            currencyToFund: body.currency,
+        });
 
-    send<ResXXX>(code, {
-      status: code < 300,
-      msg,
-    });
-  }
+        send<ResXXX>(code, {
+            status: code < 300,
+            msg,
+        });
+    }
 }
