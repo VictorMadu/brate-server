@@ -1,121 +1,94 @@
-import { Injectable } from "nist-core/injectables";
+import { Injectable } from "victormadu-nist-core";
 import { PostgresDbService } from "../_utils/market.db.service";
 import { PoolClient } from "pg";
 import {
-  wallet_currency_transactions as transactions,
-  sellers,
-  blackRates,
+    wallet_currency_transactions as transactions,
+    sellers,
+    blackRates,
 } from "../../utils/postgres-db-types/erate";
-import {
-  PostgresHeplper,
-  PostgresPoolClientRunner,
-} from "../../utils/postgres-helper";
-import { returnFalseIfNully, returnUndefinedIfFalsy } from "../../utils/funcs";
+import { PostgresHeplper, PostgresPoolClientRunner } from "../../utils/postgres-helper";
 
 interface SetInData {
-  userId: string;
-  rate: number;
-  baseCurrency: string;
-  quotaCurrency: string;
+    userId: string;
+    rate: number;
+    baseCurrency: string;
+    quotaCurrency: string;
 }
 
 interface DropInData {
-  userId: string;
-  baseCurrency: string;
-  quotaCurrency: string;
+    userId: string;
+    baseCurrency: string;
+    quotaCurrency: string;
 }
 
 @Injectable()
 export class DbService {
-  constructor(
-    private currencyDb: PostgresDbService,
-    private helper: PostgresHeplper,
-    private runner: PostgresPoolClientRunner
-  ) {}
+    constructor(
+        private currencyDb: PostgresDbService,
+        private helper: PostgresHeplper,
+        private runner: PostgresPoolClientRunner
+    ) {}
 
-  private onReady() {
-    this.runner.setPsql(this.currencyDb.getPsql());
-  }
-
-  async setUserBlackCurrencyRate(inData: SetInData): Promise<boolean> {
-    const queryFn = async (psql: PoolClient) =>
-      returnUndefinedIfFalsy(
-        await this._setUserBlackCurrencyRate(psql, inData)
-      );
-
-    return returnFalseIfNully(await this.runner.runQuery(queryFn));
-  }
-
-  async dropUserBlackCurrencyRate(inData: DropInData): Promise<boolean> {
-    const queryFn = async (psql: PoolClient) =>
-      returnUndefinedIfFalsy(
-        await this._dropUserBlackCurrencyRate(psql, inData)
-      );
-
-    return returnFalseIfNully(await this.runner.runQuery(queryFn));
-  }
-
-  private async _setUserBlackCurrencyRate(
-    psql: PoolClient,
-    inData: SetInData
-  ): Promise<boolean> {
-    const queryCreator = new SetBlackRateQueryCreator({
-      userId: this.helper.sanitize(inData.userId),
-      rate: this.helper.sanitize(inData.rate),
-      baseCurrency: this.helper.sanitize(inData.baseCurrency),
-      quotaCurrency: this.helper.sanitize(inData.quotaCurrency),
-    });
-
-    console.log("_setUserBlackCurrencyRate query", queryCreator.getQuery());
-
-    try {
-      const result = await psql.query(queryCreator.getQuery());
-      console.log("_setUserBlackCurrencyRate  result", result);
-      return this.helper.hasAlteredTable(result);
-    } catch (error) {
-      console.log("_setUserBlackCurrencyRate error", error);
-      throw error;
+    private onReady() {
+        this.runner.setPsql(this.currencyDb.getPsql());
     }
-  }
 
-  private async _dropUserBlackCurrencyRate(
-    psql: PoolClient,
-    inData: DropInData
-  ): Promise<boolean> {
-    const queryCreator = new DropBlackRateQueryCreator({
-      userId: this.helper.sanitize(inData.userId),
-      baseCurrency: this.helper.sanitize(inData.baseCurrency),
-      quotaCurrency: this.helper.sanitize(inData.quotaCurrency),
-    });
-
-    console.log("_dropUserBlackCurrencyRate query", queryCreator.getQuery());
-
-    try {
-      const result = await psql.query(queryCreator.getQuery());
-      console.log("_dropUserBlackCurrencyRate  result", result);
-      return this.helper.hasAlteredTable(result);
-    } catch (error) {
-      console.log("_dropUserBlackCurrencyRate error", error);
-      throw error;
+    async setUserBlackCurrencyRate(inData: SetInData): Promise<boolean> {
+        return !!(await this.runner.runQuery((psql) =>
+            this._setUserBlackCurrencyRate(psql, inData)
+        ));
     }
-  }
+
+    async dropUserBlackCurrencyRate(inData: DropInData): Promise<boolean> {
+        return !!(await this.runner.runQuery((psql) =>
+            this._dropUserBlackCurrencyRate(psql, inData)
+        ));
+    }
+
+    private async _setUserBlackCurrencyRate(psql: PoolClient, inData: SetInData): Promise<boolean> {
+        const queryCreator = new SetBlackRateQueryCreator({
+            userId: this.helper.sanitize(inData.userId),
+            rate: this.helper.sanitize(inData.rate),
+            baseCurrency: this.helper.sanitize(inData.baseCurrency),
+            quotaCurrency: this.helper.sanitize(inData.quotaCurrency),
+        });
+
+        console.log("_setUserBlackCurrencyRate query", queryCreator.getQuery());
+        const result = await psql.query(queryCreator.getQuery());
+        return this.helper.hasAlteredTable(result);
+    }
+
+    private async _dropUserBlackCurrencyRate(
+        psql: PoolClient,
+        inData: DropInData
+    ): Promise<boolean> {
+        const queryCreator = new DropBlackRateQueryCreator({
+            userId: this.helper.sanitize(inData.userId),
+            baseCurrency: this.helper.sanitize(inData.baseCurrency),
+            quotaCurrency: this.helper.sanitize(inData.quotaCurrency),
+        });
+
+        console.log("_dropUserBlackCurrencyRate query", queryCreator.getQuery());
+        const result = await psql.query(queryCreator.getQuery());
+        return this.helper.hasAlteredTable(result);
+    }
 }
 
 class SetBlackRateQueryCreator {
-  private userId: string;
-  private rate: number;
-  private baseCurrency: string;
-  private quotaCurrency: string;
+    private userId: string;
+    private rate: number;
+    private baseCurrency: string;
+    private quotaCurrency: string;
 
-  constructor(sanitizedInData: SetInData) {
-    this.userId = sanitizedInData.userId;
-    this.rate = sanitizedInData.rate;
-    this.baseCurrency = sanitizedInData.baseCurrency;
-    this.quotaCurrency = sanitizedInData.quotaCurrency;
-  }
+    constructor(sanitizedInData: SetInData) {
+        this.userId = sanitizedInData.userId;
+        this.rate = sanitizedInData.rate;
+        this.baseCurrency = sanitizedInData.baseCurrency;
+        this.quotaCurrency = sanitizedInData.quotaCurrency;
+    }
 
-  getQuery() {
-    return `
+    getQuery() {
+        return `
       INSERT INTO
         ${blackRates.$$NAME}
         (
@@ -135,7 +108,7 @@ class SetBlackRateQueryCreator {
         ${sellers.user_id} = ${this.userId} AND 
         NOT EXISTS (
           SELECT 
-            NULL
+            1
           FROM (
             SELECT 
               rate
@@ -153,24 +126,24 @@ class SetBlackRateQueryCreator {
             ${blackRates.rate} = ${this.rate}
         )
     `;
-  }
+    }
 }
 
 class DropBlackRateQueryCreator {
-  private userId: string;
-  private baseCurrency: string;
-  private quotaCurrency: string;
+    private userId: string;
+    private baseCurrency: string;
+    private quotaCurrency: string;
 
-  constructor(sanitizedInData: DropInData) {
-    this.userId = sanitizedInData.userId;
-    this.baseCurrency = sanitizedInData.baseCurrency;
-    this.quotaCurrency = sanitizedInData.quotaCurrency;
-  }
+    constructor(sanitizedInData: DropInData) {
+        this.userId = sanitizedInData.userId;
+        this.baseCurrency = sanitizedInData.baseCurrency;
+        this.quotaCurrency = sanitizedInData.quotaCurrency;
+    }
 
-  getQuery() {
-    const b = "__b";
-    const s = "__s";
-    return `
+    getQuery() {
+        const b = "__b";
+        const s = "__s";
+        return `
       INSERT INTO
         ${blackRates.$$NAME}
         (
@@ -209,5 +182,5 @@ class DropBlackRateQueryCreator {
       WHERE 
         __bb.${blackRates.rate}  IS NOT NULL
     `;
-  }
+    }
 }
