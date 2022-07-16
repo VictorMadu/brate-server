@@ -26,16 +26,17 @@ export class Service {
 
     async runDbService(userId: string, inData: ServiceInData) {
         const rate = inData.rate;
-        if (rate == null) {
-            return await this.dbService.dropUserBlackCurrencyRate({
+        if (rate) {
+            return await this.dbService.setUserBlackCurrencyRate({
                 userId,
                 ...inData,
+                rate,
             });
         }
-        return await this.dbService.setUserBlackCurrencyRate({
+
+        return await this.dbService.dropUserBlackCurrencyRate({
             userId,
             ...inData,
-            rate,
         });
     }
 }
