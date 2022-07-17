@@ -3,7 +3,11 @@ import { PostgresDbService } from "../_utils/market.db.service";
 import { PoolClient } from "pg";
 import { parallelRates, user_favourite_currency_pairs } from "../../utils/postgres-db-types/erate";
 import { PostgresHeplper, PostgresPoolClientRunner } from "../../utils/postgres-helper";
-import { toBoolean, toFloat, toString } from "../../utils/postgres-type-cast";
+import {
+    removeTrailingZeroesFromNumeric,
+    toBoolean,
+    toString,
+} from "../../utils/postgres-type-cast";
 
 // const  = "__t1";
 const latestAndPrevCurrencyRateForBase = "__t2";
@@ -141,8 +145,8 @@ class GetLastestParallelRateQueryCreator {
     SELECT 
       ${toString(this.pairSelect())}  AS pair,
       ${toBoolean(this.isFavouriteSelect())} AS is_favourite,
-      ${this.getRemoveTrailingZerosQuery(this.prevRateSelect())} AS prev_rate,
-      ${this.getRemoveTrailingZerosQuery(this.rateSelect())} AS rate
+      ${removeTrailingZeroesFromNumeric(this.prevRateSelect())} AS prev_rate,
+      ${removeTrailingZeroesFromNumeric(this.rateSelect())} AS rate
     FROM 
       ${latestAndPrevCurrencyRate}
     WHERE ${latestAndPrevCurrencyRate}.${currency_id} <> 
@@ -184,10 +188,6 @@ class GetLastestParallelRateQueryCreator {
             rate,
             latestAndPrevCurrencyRateForBase
         )}`;
-    }
-
-    private getRemoveTrailingZerosQuery(colName: string) {
-        return `(REGEXP_MATCH(${colName}::TEXT, '(\\d*(.\\d)?(\\d*[1-9])?)'))[1]::NUMERIC`;
     }
 }
 

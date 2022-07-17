@@ -1,6 +1,6 @@
+import { Injectable } from "victormadu-nist-core";
 import { PoolClient } from "pg";
 import { PostgresDbService } from "../_utils/market.db.service";
-import { Injectable } from "victormadu-nist-core";
 import {
     blackRates,
     currencies,
@@ -9,7 +9,10 @@ import {
 } from "../../utils/postgres-db-types/erate";
 import { DbInData, InData, OutData, Payload } from "./interface";
 import { PostgresHeplper, PostgresPoolClientRunner } from "../../utils/postgres-helper";
-import { timestampToNumeric } from "../../utils/postgres-type-cast";
+import {
+    removeTrailingZeroesFromNumeric,
+    timestampToNumeric,
+} from "../../utils/postgres-type-cast";
 
 const t = "__t";
 const t1 = "__t1";
@@ -28,6 +31,7 @@ export class GetCurrencyPairListDbService {
     payload!: Payload;
     market!: "black" | "parallel";
     inData!: InData;
+
     constructor(
         private db: PostgresDbService,
         private helper: PostgresHeplper,
@@ -141,7 +145,7 @@ class BlackMarketRateQueryCreator {
       SELECT 
         ${t}.${blackRates.quota} as quota,
         array_agg(${t}.${blackRates.time}) as timestamps,
-        array_agg(${this.getRemoveTrailingZerosQuery(`${t}.${blackRates.rate}`)}) as rates
+        array_agg(${removeTrailingZeroesFromNumeric(`${t}.${blackRates.rate}`)}) as rates
       FROM  (
         SELECT 
           ${blackRates.quota} as ${blackRates.quota},  
@@ -194,10 +198,6 @@ class BlackMarketRateQueryCreator {
             this.interval
         }`;
     }
-
-    private getRemoveTrailingZerosQuery(colName: string) {
-        return `(REGEXP_MATCH(${colName}::TEXT, '(\\d*(.\\d)?(\\d*[1-9])?)'))[1]::NUMERIC`;
-    }
 }
 
 class ParallelMarketRateQueryCreator {
@@ -223,7 +223,7 @@ class ParallelMarketRateQueryCreator {
       SELECT 
         ${t}.${parallelRates.currency_id} as quota,
         array_agg(${t}.${parallelRates.time}) as timestamps,
-        array_agg(${this.getRemoveTrailingZerosQuery(`${t}.${parallelRates.rate}`)}) as rates
+        array_agg(${removeTrailingZeroesFromNumeric(`${t}.${parallelRates.rate}`)}) as rates
       FROM  (
         
       SELECT 
@@ -273,9 +273,5 @@ class ParallelMarketRateQueryCreator {
         return `floor( ${timestampToNumeric(`${t1}.${parallelRates.time}`)}/${this.interval})  * ${
             this.interval
         }`;
-    }
-
-    getRemoveTrailingZerosQuery(colName: string) {
-        return `(REGEXP_MATCH(${colName}::TEXT, '(\\d*(.\\d)?(\\d*[1-9])?)'))[1]::NUMERIC`;
     }
 }

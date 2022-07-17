@@ -17,3 +17,7 @@ export function timestampToNumeric(query: string) {
 export function timestampToInt(query: string) {
     return `EXTRACT (EPOCH FROM (${query}))::INT`;
 }
+
+export function removeTrailingZeroesFromNumeric(colName: string) {
+    return `(REGEXP_MATCH(${colName}::TEXT, '(\\d*(.\\d)?(\\d*[1-9])?)'))[1]::NUMERIC`;
+}

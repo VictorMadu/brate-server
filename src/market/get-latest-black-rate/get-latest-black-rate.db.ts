@@ -3,7 +3,12 @@ import { Injectable } from "victormadu-nist-core";
 import { PoolClient } from "pg";
 import { blackRates, user_favourite_currency_pairs } from "../../utils/postgres-db-types/erate";
 import { PostgresHeplper, PostgresPoolClientRunner } from "../../utils/postgres-helper";
-import { toBoolean, toFloat, toString } from "../../utils/postgres-type-cast";
+import {
+    removeTrailingZeroesFromNumeric,
+    toBoolean,
+    toFloat,
+    toString,
+} from "../../utils/postgres-type-cast";
 
 const t1 = "__t1";
 const t2 = "__t2";
@@ -39,7 +44,7 @@ export class DbService {
     }
 
     async getLatestRate(inData: InData): Promise<OutData[] | undefined> {
-        return await this.runner.runQuery(async (psql) => await this._getLatestRate(psql, inData));
+        return await this.runner.runQuery((psql) => this._getLatestRate(psql, inData));
     }
 
     async _getLatestRate(psql: PoolClient, inData: InData): Promise<OutData[] | undefined> {
@@ -51,7 +56,7 @@ export class DbService {
     }
 
     async getTotal(inData: Omit<InData, "pageOffset" | "pageCount">) {
-        return await this.runner.runQuery(async (psql) => await this._getTotal(psql, inData));
+        return await this.runner.runQuery((psql) => this._getTotal(psql, inData));
     }
 
     async _getTotal(psql: PoolClient, inData: Omit<InData, "pageOffset" | "pageCount">) {
@@ -136,8 +141,8 @@ class GetLastestBlackRateQueryCreator {
       ON (${t1}.${base}, ${t1}.${quota})
       ${toString(this.pairSelect())} AS pair,
       ${toBoolean(this.favouriteSelect())} AS is_favourite,
-      ${this.getRemoveTrailingZerosQuery(this.rateSelect())} AS rate,
-      ${this.getRemoveTrailingZerosQuery(this.prevRateSelect())} AS prev_rate
+      ${removeTrailingZeroesFromNumeric(this.rateSelect())} AS rate,
+      ${removeTrailingZeroesFromNumeric(this.prevRateSelect())} AS prev_rate
     FROM ${t1} 
     LEFT JOIN LATERAL (
       SELECT 
@@ -189,9 +194,5 @@ class GetLastestBlackRateQueryCreator {
         const { base } = blackRates;
         if (!bases) return "TRUE";
         return `${base} IN (${bases})`;
-    }
-
-    private getRemoveTrailingZerosQuery(colName: string) {
-        return `(REGEXP_MATCH(${colName}::TEXT, '(\\d*(.\\d)?(\\d*[1-9])?)'))[1]::NUMERIC`;
     }
 }
