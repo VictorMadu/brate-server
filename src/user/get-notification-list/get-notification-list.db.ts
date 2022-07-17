@@ -9,7 +9,7 @@ import {
     web_clients,
 } from "../../utils/postgres-db-types/erate";
 import { PostgresHeplper, PostgresPoolClientRunner } from "../../utils/postgres-helper";
-import { timestampToFloat, toString } from "../../utils/postgres-type-cast";
+import { timestampToNumeric, toString } from "../../utils/postgres-type-cast";
 
 const table = notifications;
 const t = "__t";
@@ -81,7 +81,7 @@ export class GetAlertListDbService {
         psql: PoolClient,
         inData: InData
     ): Promise<{ msg: string; id: string; type: "P" | "F" | "T"; created_at: number }[]> {
-        // TODO: Instead of convert timestampToFLoat like here in ling 84, for a higher accurate we convert to string and send to client or we multiple the timestamp to a degree of accuracy and send as int
+        // TODO: Instead of convert timestampToNumeric like here in ling 84, for a higher accurate we convert to string and send to client or we multiple the timestamp to a degree of accuracy and send as int
         const result = await psql.query<{
             msg: string;
             id: string;
@@ -91,7 +91,7 @@ export class GetAlertListDbService {
         SELECT 
           ${toString(table.msg)} as msg,
           ${table.notification_id} as id,
-          ${timestampToFloat(table.created_at)} as created_at
+          ${timestampToNumeric(table.created_at)} as created_at
         FROM 
           ${table.$$NAME}
         WHERE

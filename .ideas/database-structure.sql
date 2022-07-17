@@ -55,7 +55,6 @@ CREATE TABLE IF NOT EXISTS parallel_rates (
 
 ALTER TABLE parallel_rates ADD FOREIGN KEY(currency_id) REFERENCES currencies(currency_id);
 
-
 CREATE TABLE IF NOT EXISTS black_rates (
   seller_id uuid NOT NULL,
   time TIMESTAMPTZ DEFAULT NOW() NOT NULL,
