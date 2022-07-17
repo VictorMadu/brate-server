@@ -1,5 +1,5 @@
 export * as TradeList from "./trade-list";
-// export * as TradeExchange from "./trade-exchange";
+export * as TradeExchange from "./trade-exchange";
 export * as GetCurrencyRateAndData from "./get-currency-rate-and-data";
 export * as SetBlackRate from "./set-black-rate";
 export * as GetLastestParallelRate from "./get-latest-parallel-rate";

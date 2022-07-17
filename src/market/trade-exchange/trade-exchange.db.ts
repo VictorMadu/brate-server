@@ -1,103 +1,101 @@
-import { Injectable } from "nist-core/injectables";
+import { Injectable } from "victormadu-nist-core";
 import { PostgresDbService } from "../_utils/market.db.service";
 import { PoolClient, QueryResult } from "pg";
 import {
-  wallet_currency_transactions as transactions,
-  sellers,
-  blackRates,
-  users,
+    wallet_currency_transactions as transactions,
+    sellers,
+    blackRates,
+    users,
 } from "../../utils/postgres-db-types/erate";
 import { PostgresHeplper, PostgresPoolClientRunner } from "../../utils/postgres-helper";
 import { result } from "lodash";
 
 interface InData {
-  buyerUserId: string;
-  currencySend: string;
-  currencyReceive: string;
-  amountSend: number;
-  sellerId: string;
+    buyerUserId: string;
+    currencySend: string;
+    currencyReceive: string;
+    amountSend: number;
+    sellerId: string;
 }
 
 @Injectable()
 export class DbService {
-  constructor(
-    private currencyDb: PostgresDbService,
-    private helper: PostgresHeplper,
-    private runner: PostgresPoolClientRunner
-  ) {}
+    constructor(
+        private currencyDb: PostgresDbService,
+        private helper: PostgresHeplper,
+        private runner: PostgresPoolClientRunner
+    ) {}
 
-  private onReady() {
-    this.runner.setPsql(this.currencyDb.getPsql());
-  }
+    private onReady() {
+        this.runner.setPsql(this.currencyDb.getPsql());
+    }
 
-  async buyCurrencyFromSeller(inData: InData): Promise<boolean | undefined> {
-    return await this.runner.runQuery(async (psql) => await this._getPriceAlerts(psql, inData));
-  }
+    async buyCurrencyFromSeller(inData: InData): Promise<boolean | undefined> {
+        return this.runner.runQuery((psql) => this._getPriceAlerts(psql, inData));
+    }
 
-  // buyer gives base to seller
-  // seller gives quota to buyer
-  async _getPriceAlerts(psql: PoolClient, inData: InData): Promise<boolean> {
-    const transactionHandler = new TransferTransactionHandler(psql, this.helper, {
-      buyerUserId: this.helper.sanitize(inData.buyerUserId),
-      currencySend: this.helper.sanitize(inData.currencySend),
-      currencyReceive: this.helper.sanitize(inData.currencyReceive),
-      amountSend: this.helper.sanitize(inData.amountSend),
-      sellerId: this.helper.sanitize(inData.sellerId),
-    });
+    // buyer gives base to seller
+    // seller gives quota to buyer
+    async _getPriceAlerts(psql: PoolClient, inData: InData): Promise<boolean> {
+        const transactionHandler = new TransferTransactionHandler(psql, this.helper, {
+            buyerUserId: this.helper.sanitize(inData.buyerUserId),
+            currencySend: this.helper.sanitize(inData.currencySend),
+            currencyReceive: this.helper.sanitize(inData.currencyReceive),
+            amountSend: this.helper.sanitize(inData.amountSend),
+            sellerId: this.helper.sanitize(inData.sellerId),
+        });
 
-    const isSuccessful = await transactionHandler.run();
-    return isSuccessful;
-  }
+        const isSuccessful = await transactionHandler.run();
+        return isSuccessful;
+    }
 }
 
 // TODO: Needs refactoring
 // TODO: Have a transaction audit db
 class TransferTransactionHandler {
-  private buyerUserId: string;
-  private baseCurrency: string;
-  private quotaCurrency: string;
-  private amountSend: number;
-  private sellerId: string;
+    private buyerUserId: string;
+    private baseCurrency: string;
+    private quotaCurrency: string;
+    private amountSend: number;
+    private sellerId: string;
 
-  constructor(private psql: PoolClient, private helper: PostgresHeplper, sanitizedInData: InData) {
-    this.buyerUserId = sanitizedInData.buyerUserId;
-    this.baseCurrency = sanitizedInData.currencySend;
-    this.quotaCurrency = sanitizedInData.currencyReceive;
-    this.amountSend = sanitizedInData.amountSend;
-    this.sellerId = sanitizedInData.sellerId;
-  }
-
-  async run() {
-    console.log("TransferTransactionHandler query", this.getRunQuery());
-    try {
-      const result = await this.psql.query<{ amount: number }>(this.getRunQuery());
-      console.log("TransferTransactionHandler result", result);
-      return this.helper.hasAlteredTable(result);
-    } catch (error) {
-      console.log("TransferTransactionHandler error", error);
-      throw error;
+    constructor(
+        private psql: PoolClient,
+        private helper: PostgresHeplper,
+        sanitizedInData: InData
+    ) {
+        this.buyerUserId = sanitizedInData.buyerUserId;
+        this.baseCurrency = sanitizedInData.currencySend;
+        this.quotaCurrency = sanitizedInData.currencyReceive;
+        this.amountSend = sanitizedInData.amountSend;
+        this.sellerId = sanitizedInData.sellerId;
     }
-  }
 
-  private getRunQuery() {
-    const lastBuyerBaseTransact = "__a";
-    const lastBuyerQuotaTransact = "__b";
-    const lastSellerBaseTransact = "__c";
-    const lastSellerQuotaTransact = "__d";
-    const sellerRate = "__e";
-    const sellerUserIdQuery = "__f";
-    const sellerUserIdName = "__g";
-    const transactionValues = "__h";
-    return `
+    async run() {
+        console.log("TransferTransactionHandler query", this.getRunQuery());
+        const result = await this.psql.query<{ amount: number }>(this.getRunQuery());
+        return this.helper.hasAlteredTable(result);
+    }
+
+    private getRunQuery() {
+        const lastBuyerBaseTransact = "__a";
+        const lastBuyerQuotaTransact = "__b";
+        const lastSellerBaseTransact = "__c";
+        const lastSellerQuotaTransact = "__d";
+        const sellerRate = "__e";
+        const sellerUserIdQuery = "__f";
+        const sellerUserIdName = "__g";
+        const transactionValues = "__h";
+        return `
       WITH ${sellerUserIdQuery} AS (${this.createSellerUserIdQuery(sellerUserIdName)}),
       ${lastBuyerBaseTransact} AS (${this.createBuyerLastBaseCurrencyTransactQuery()}),
       ${lastBuyerQuotaTransact} AS (${this.createBuyerLastQuotaCurrencyTransactQuery()}),
       ${lastSellerBaseTransact} AS (${this.createSellerLastBaseCurrencyTransactQuery(
-      `SELECT ${sellerUserIdName} FROM ${sellerUserIdQuery}`
-    )}),
+            `SELECT ${sellerUserIdName} FROM ${sellerUserIdQuery}`
+        )}),
      ${lastSellerQuotaTransact} AS (${this.createSellerLastQuotaCurrencyTransactQuery(
-      `SELECT ${sellerUserIdName} FROM ${sellerUserIdQuery}`
-    )}),
+            `SELECT ${sellerUserIdName} FROM ${sellerUserIdQuery}`
+        )}),
       ${sellerRate} AS (${this.createGetSellerBlackRateFromUserId()})
 
       INSERT INTO
@@ -132,8 +130,8 @@ class TransferTransactionHandler {
           (
             (SELECT ${transactions.user_id} FROM ${lastSellerQuotaTransact}),
             (SELECT ${transactions.amount} FROM ${lastSellerQuotaTransact}) - ${
-      this.amountSend
-    } * (SELECT ${blackRates.rate} FROM ${sellerRate}),
+            this.amountSend
+        } * (SELECT ${blackRates.rate} FROM ${sellerRate}),
             (SELECT ${transactions.currency_id} FROM ${lastSellerQuotaTransact}),
             ${this.buyerUserId}
           ),
@@ -142,8 +140,8 @@ class TransferTransactionHandler {
           (
             (SELECT ${transactions.user_id} FROM ${lastBuyerQuotaTransact}),
             (SELECT ${transactions.amount} FROM ${lastBuyerQuotaTransact}) + ${
-      this.amountSend
-    } * (SELECT ${blackRates.rate} FROM ${sellerRate}),
+            this.amountSend
+        } * (SELECT ${blackRates.rate} FROM ${sellerRate}),
             (SELECT ${transactions.currency_id} FROM ${lastBuyerQuotaTransact}),
             (SELECT ${sellerUserIdName} FROM ${sellerUserIdQuery})
           )
@@ -157,31 +155,31 @@ class TransferTransactionHandler {
         EXISTS (SELECT * FROM ${sellerRate}) AND
         ${this.amountSend} > 0
     `;
-  }
+    }
 
-  private createBuyerLastBaseCurrencyTransactQuery() {
-    return this.createGetLastTransactQueryForUser(this.buyerUserId, this.baseCurrency);
-  }
+    private createBuyerLastBaseCurrencyTransactQuery() {
+        return this.createGetLastTransactQueryForUser(this.buyerUserId, this.baseCurrency);
+    }
 
-  private createBuyerLastQuotaCurrencyTransactQuery() {
-    return this.createGetLastTransactQueryForUser(this.buyerUserId, this.quotaCurrency);
-  }
+    private createBuyerLastQuotaCurrencyTransactQuery() {
+        return this.createGetLastTransactQueryForUser(this.buyerUserId, this.quotaCurrency);
+    }
 
-  private createSellerLastBaseCurrencyTransactQuery(sellerUserIdQuery: string) {
-    return this.createGetLastTransactQueryForUser(sellerUserIdQuery, this.baseCurrency);
-  }
+    private createSellerLastBaseCurrencyTransactQuery(sellerUserIdQuery: string) {
+        return this.createGetLastTransactQueryForUser(sellerUserIdQuery, this.baseCurrency);
+    }
 
-  private createSellerLastQuotaCurrencyTransactQuery(sellerUserIdQuery: string) {
-    return this.createGetLastTransactQueryForUser(sellerUserIdQuery, this.quotaCurrency);
-  }
+    private createSellerLastQuotaCurrencyTransactQuery(sellerUserIdQuery: string) {
+        return this.createGetLastTransactQueryForUser(sellerUserIdQuery, this.quotaCurrency);
+    }
 
-  private createGetLastTransactQueryForUser(userIdQuery: string, currencyIdQuery: string) {
-    const t = "__t";
-    return `
+    private createGetLastTransactQueryForUser(userIdQuery: string, currencyIdQuery: string) {
+        const t = "__t";
+        return `
       WITH ${t} AS (
         SELECT 
-          (${userIdQuery})::uuid AS ${transactions.user_id},
-          (${currencyIdQuery}) AS ${transactions.currency_id},
+          (${transactions.user_id})::uuid AS ${transactions.user_id},
+          (${transactions.currency_id}) AS ${transactions.currency_id},
           ${transactions.amount} AS ${transactions.amount}
         FROM 
           ${transactions.$$NAME}
@@ -207,10 +205,10 @@ class TransferTransactionHandler {
           EXISTS (SELECT 1 FROM ${users.$$NAME} WHERE ${users.user_id} = (${userIdQuery}))
       )
     `;
-  }
+    }
 
-  private createGetSellerBlackRateFromUserId() {
-    return `
+    private createGetSellerBlackRateFromUserId() {
+        return `
       SELECT 
         ${blackRates.rate}
       FROM 
@@ -223,10 +221,10 @@ class TransferTransactionHandler {
         ${blackRates.time} DESC
       FETCH FIRST ROW ONLY
     `;
-  }
+    }
 
-  private createSellerUserIdQuery(sellerUserIdName: string) {
-    return `
+    private createSellerUserIdQuery(sellerUserIdName: string) {
+        return `
       SELECT 
         u.${users.user_id} AS ${sellerUserIdName}
       FROM 
@@ -239,5 +237,5 @@ class TransferTransactionHandler {
         s.${sellers.seller_id} = ${this.sellerId} AND
         u.${users.user_id} <> ${this.buyerUserId}
     `;
-  }
+    }
 }
