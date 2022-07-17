@@ -184,18 +184,18 @@ class BlackMarketRateQueryCreator {
     `;
     }
 
-    getRequiredQuotasQuery() {
+    private getRequiredQuotasQuery() {
         if (this.quotas === "") return `TRUE`;
         return `${t}.${parallelRates.currency_id} IN (${this.quotas})`;
     }
 
-    getTimestampIntervalSplitQuery() {
+    private getTimestampIntervalSplitQuery() {
         return `floor( ${timestampToNumeric(`${t1}.${blackRates.time}`)}/${this.interval})  * ${
             this.interval
         }`;
     }
 
-    getRemoveTrailingZerosQuery(colName: string) {
+    private getRemoveTrailingZerosQuery(colName: string) {
         return `(REGEXP_MATCH(${colName}::TEXT, '(\\d*(.\\d)?(\\d*[1-9])?)'))[1]::NUMERIC`;
     }
 }
