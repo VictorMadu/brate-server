@@ -1,4 +1,4 @@
-import { Injectable } from "nist-core/injectables";
+import { Injectable } from "victormadu-nist-core";
 import { PostgresDbService } from "../_utils/market.db.service";
 import { PoolClient } from "pg";
 import {
@@ -8,7 +8,11 @@ import {
     wallet_currency_transactions as wallet,
 } from "../../utils/postgres-db-types/erate";
 import { PostgresHeplper, PostgresPoolClientRunner } from "../../utils/postgres-helper";
-import { timestampToNumeric, toFloat, toString } from "../../utils/postgres-type-cast";
+import {
+    timestampToNumeric,
+    removeTrailingZeroesFromNumeric,
+    toString,
+} from "../../utils/postgres-type-cast";
 
 interface InData {
     interestedPairs: {
@@ -43,23 +47,18 @@ export class DbService {
 
     async getTradersData(inData: InData) {
         return (
-            (await this.runner.runQuery(
-                async (psql) => await this._getTradersDataAndLastestRates(psql, inData)
+            (await this.runner.runQuery((psql) =>
+                this._getTradersDataAndLastestRates(psql, inData)
             )) ?? []
         );
     }
 
     private async _getTradersDataAndLastestRates(psql: PoolClient, inData: InData) {
         const queryCreator = new GetTradersDataAndLastestRatesQueryCreator(this.helper, inData);
+
         console.log("_getTradersDataAndLastestRates query ", queryCreator.getQuery());
-        try {
-            const result = await psql.query<OutData>(queryCreator.getQuery());
-            console.log("_getTradersDataAndLastestRates result ", result);
-            return this.helper.getAllRows(result);
-        } catch (error) {
-            console.log("_getTradersDataAndLastestRates error ", error);
-            throw error;
-        }
+        const result = await psql.query<OutData>(queryCreator.getQuery());
+        return this.helper.getAllRows(result);
     }
 }
 
@@ -98,8 +97,12 @@ class GetTradersDataAndLastestRatesQueryCreator {
         ${toString(`${this.b}.${blackRates.seller_id}`)} AS seller_id,
         ${toString(`${this.u}.${users.name}`)} AS seller_name,
         ${toString(`${this.b}.${blackRates.base} || ' ' || ${this.b}.${blackRates.quota}`)} AS pair,
-        ${toFloat(`${this.t}.${wallet.amount}`)} AS amount_available,
-        FIRST_VALUE(${toFloat(`${this.b}.${blackRates.rate}`)}) OVER ${this.w} AS rate,
+        ${removeTrailingZeroesFromNumeric(
+            `COALESCE(${this.t}.${wallet.amount}, 0)`
+        )} AS amount_available,
+        FIRST_VALUE(${removeTrailingZeroesFromNumeric(`${this.b}.${blackRates.rate}`)}) OVER ${
+            this.w
+        } AS rate,
         FIRST_VALUE(${timestampToNumeric(`${this.b}.${blackRates.time}`)}) OVER ${
             this.w
         } AS created_at
@@ -113,22 +116,23 @@ class GetTradersDataAndLastestRatesQueryCreator {
         ${users.$$NAME} AS ${this.u}
       ON 
         ${this.u}.${users.user_id} = ${this.s}.${sellers.user_id}
-      INNER JOIN LATERAL (
+      LEFT JOIN LATERAL (
         SELECT 
           ${wallet.amount}
         FROM 
           ${wallet.$$NAME} 
         WHERE 
           ${wallet.user_id} = ${this.s}.${sellers.user_id} AND 
-          ${wallet.currency_id} = ${this.b}.${blackRates.base}
+          ${wallet.currency_id} = ${this.b}.${blackRates.base} AND
+          ${this.createWhereQueryFromPair()}
         ORDER BY 
-          ${wallet.created_at} DESC 
+          ${wallet.created_at} DESC NULLS LAST
         FETCH FIRST ROW ONLY
       ) AS ${this.t}
       ON TRUE 
       WINDOW ${this.w} AS (PARTITION BY ${this.b}.${blackRates.base}, ${this.b}.${
             blackRates.quota
-        }, ${this.b}.${blackRates.seller_id} ORDER BY ${this.b}.${blackRates.time} DESC)
+        }, ${this.b}.${blackRates.seller_id} ORDER BY ${this.b}.${blackRates.time} DESC NULLS LAST)
     ) AS ${this.q}
     WHERE 
       rate IS NOT NULL
@@ -148,18 +152,18 @@ class GetTradersDataAndLastestRatesQueryCreator {
             const base = this.helper.sanitize(unSanitizedBase);
             const quota = this.helper.sanitize(unSanitizedQuota);
 
-            queryBuilder += `(${this.b}.${blackRates.base} = ${base} AND ${this.b}.${blackRates.quota} = ${quota}) OR`;
+            queryBuilder += `(${this.b}.${blackRates.base} = ${base} AND ${this.b}.${blackRates.quota} = ${quota}) OR `;
         }
-
         return this.removeLastTrailiingORAndSpaceFrom(queryBuilder);
     }
 
     private removeLastTrailiingORAndSpaceFrom(queryBuilder: string) {
-        const positionToStartToRemove = 3; // ' OR' => 3
+        const positionToStartToRemove = " OR".length;
         return queryBuilder.slice(0, -positionToStartToRemove);
     }
 
     private isUnSanitizedPairsArrEmpty() {
+        console.log("unsanitized interested pair", this.unSanitizedInterestedPairs);
         return this.unSanitizedInterestedPairs.length === 0;
     }
 }
