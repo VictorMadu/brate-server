@@ -141,8 +141,8 @@ class GetLastestParallelRateQueryCreator {
     SELECT 
       ${toString(this.pairSelect())}  AS pair,
       ${toBoolean(this.isFavouriteSelect())} AS is_favourite,
-      ${toFloat(this.prevRateSelect())} AS prev_rate,
-      ${toFloat(this.rateSelect())} AS rate
+      ${this.getRemoveTrailingZerosQuery(this.prevRateSelect())} AS prev_rate,
+      ${this.getRemoveTrailingZerosQuery(this.rateSelect())} AS rate
     FROM 
       ${latestAndPrevCurrencyRate}
     WHERE ${latestAndPrevCurrencyRate}.${currency_id} <> 
@@ -184,6 +184,10 @@ class GetLastestParallelRateQueryCreator {
             rate,
             latestAndPrevCurrencyRateForBase
         )}`;
+    }
+
+    private getRemoveTrailingZerosQuery(colName: string) {
+        return `(REGEXP_MATCH(${colName}::TEXT, '(\\d*(.\\d)?(\\d*[1-9])?)'))[1]::NUMERIC`;
     }
 }
 
