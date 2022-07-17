@@ -114,10 +114,10 @@ export class PostgresHeplper {
         return queryResult.rowCount;
     }
 
-    sanitize(d: any) {
+    sanitize(d: any): any {
         if (isString(d)) return this.sanitizeStr(d);
         if (isNumber(d)) return this.sanitizeNum(d);
-        if (Array.isArray(d)) return this.sanitizeArray(d);
+        if (Array.isArray(d)) return map(d, (itemInD) => this.sanitize(itemInD)).toString(); //TODO: Also expect a open and close cover for array. Here it is '' for both
         return d;
     }
 
@@ -129,17 +129,6 @@ export class PostgresHeplper {
         if (num === Number.POSITIVE_INFINITY) return "infinity";
         if (num === Number.NEGATIVE_INFINITY) return "-infinity";
         return num;
-    }
-
-    sanitizeArray(collections: any[]) {
-        return reduce(
-            collections,
-            (transformedCollections, item) => {
-                transformedCollections += "," + this.sanitize(item);
-                return transformedCollections;
-            },
-            ""
-        ).slice(1);
     }
 
     hasAlteredTable(result: QueryResult<any>) {
