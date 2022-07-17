@@ -12,34 +12,46 @@ export type Res4XX = FromSchema<typeof res4XXSchema>;
 export type ResTuple = _ResTuple<Res2XX["data"] | undefined>;
 
 export type Payload = {
-  userId: string | undefined;
-  base: string;
-  include_favourites: boolean | undefined;
-  from: number | undefined;
-  market: "parallel" | "black";
-  interval: number | undefined;
-  steps: number | undefined;
-  page_limit: string | undefined;
-  page_offset: string | undefined;
+    userId: string | undefined;
+    base: string;
+    include_favourites: boolean | undefined;
+    from: number | undefined;
+    market: "parallel" | "black";
+    interval: number | undefined;
+    steps: number | undefined;
+    page_limit: string | undefined;
+    page_offset: string | undefined;
 };
 
 export type Result<S extends boolean | undefined> = {
-  data: { is_starred: S; price: number[]; quota: string }[];
-  dates: number[];
+    data: { is_starred: S; price: number[]; quota: string }[];
+    dates: number[];
 };
 
 export type InData = {
-  market_type: "parallel" | "black";
-  base: string;
-  from: number;
-  interval: number;
-  limit: number;
-  offset: number;
-  to: number;
+    market_type: "parallel" | "black";
+    base: string;
+    from: number;
+    interval: number;
+    limit: number;
+    offset: number;
+    to: number;
+    quotas: string[];
+};
+
+export type DbInData = {
+    market_type: "parallel" | "black";
+    base: string;
+    from: number;
+    interval: number;
+    limit: number;
+    offset: number;
+    to: number;
+    quotas: string;
 };
 
 export type OutData = {
-  quota: string;
-  timestamps: number[];
-  rates: string[];
+    quota: string;
+    timestamps: number[];
+    rates: string[];
 }[];
