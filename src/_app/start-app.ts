@@ -5,7 +5,7 @@ import { FastifyManager } from "./fastify-manager";
 import "../user";
 import "../wallet";
 import "../market";
-// import "../currency";
+import "../currency";
 // import "./_ws";
 // import "./_crons";
 
