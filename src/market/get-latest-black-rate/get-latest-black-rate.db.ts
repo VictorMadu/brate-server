@@ -182,12 +182,12 @@ class GetLastestBlackRateQueryCreator {
 
     private rateSelect() {
         const rate = blackRates.rate;
-        return `AVG (${t1}.${rate}) OVER ${w}`;
+        return `(AVG (${t1}.${rate}) OVER ${w})`;
     }
 
     private prevRateSelect() {
         const rate = blackRates.rate;
-        return `AVG (COALESCE(${t2}.${prev_rate}, ${t1}.${rate})) OVER ${w}`;
+        return `(AVG (COALESCE(${t2}.${prev_rate}, ${t1}.${rate})) OVER ${w})`;
     }
 
     private getWhereInBasesQuery(bases: string) {

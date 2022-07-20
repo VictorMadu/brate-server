@@ -176,18 +176,18 @@ class GetLastestParallelRateQueryCreator {
     }
 
     private prevRateSelect() {
-        return `${latestAndPrevCurrencyRate}.${prev_rate}/${selectFromQuery(
+        return `(${latestAndPrevCurrencyRate}.${prev_rate}/${selectFromQuery(
             prev_rate,
             latestAndPrevCurrencyRateForBase
-        )}`;
+        )})`;
     }
 
     private rateSelect() {
         const rate = parallelRates.rate;
-        return `${latestAndPrevCurrencyRate}.${rate}/${selectFromQuery(
+        return `(${latestAndPrevCurrencyRate}.${rate}/${selectFromQuery(
             rate,
             latestAndPrevCurrencyRateForBase
-        )}`;
+        )})`;
     }
 }
 
