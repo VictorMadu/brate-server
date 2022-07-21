@@ -1,14 +1,19 @@
-import { Injectable } from "nist-core/injectables";
+import { Injectable } from "victormadu-nist-core";
 import { CurrencyPostgresDbService } from "../_utils/currency.db.service";
 import { InData, OutData } from "./interface";
 import { PoolClient } from "pg";
-import { price_alerts } from "../../../utils/postgres-db-types/erate";
-import { PostgresHeplper, PostgresPoolClientRunner } from "../../../utils/postgres-helper";
-import { timestampToNumeric, toFloat, toString } from "../../../utils/postgres-type-cast";
+import { price_alerts } from "../../utils/postgres-db-types/erate";
+import { PostgresHeplper, PostgresPoolClientRunner } from "../../utils/postgres-helper";
+import {
+    removeTrailingZeroesFromNumeric,
+    timestampToNumeric,
+    toFloat,
+    toString,
+} from "../../utils/postgres-type-cast";
 
 const table = price_alerts;
 
-// TODO: All successfully and non-successfully (error response eg: > 299 or 399 i think) should return a constant number indicating the cause. Eg: const EXPIRED_TOKEN = 1
+// TODO: Send a code as part of response to indicate status and error type
 @Injectable()
 export class GetAlertListDbService {
     constructor(
@@ -22,11 +27,7 @@ export class GetAlertListDbService {
     }
 
     async getPriceAlerts(inData: InData): Promise<OutData[]> {
-        return (
-            (await this.runner.runQuery(
-                async (psql) => await this._getPriceAlerts(psql, inData)
-            )) ?? []
-        );
+        return (await this.runner.runQuery((psql) => this._getPriceAlerts(psql, inData))) ?? [];
     }
 
     async _getPriceAlerts(psql: PoolClient, inData: InData): Promise<OutData[]> {
@@ -42,14 +43,8 @@ export class GetAlertListDbService {
             }
         );
         console.log("_getPriceAlerts query", queryCreator.getQuery());
-        try {
-            const result = await psql.query<OutData>(queryCreator.getQuery());
-            console.log("_getPriceAlerts result", result);
-            return this.helper.getAllRows(result);
-        } catch (error) {
-            console.log("_getPriceAlerts error", error);
-            throw error;
-        }
+        const result = await psql.query<OutData>(queryCreator.getQuery());
+        return this.helper.getAllRows(result);
     }
 }
 
@@ -71,14 +66,17 @@ class GetPriceAlertsQueryCreator {
         this.limit = sanitizedInData.limit;
     }
 
+    // TODO: No need for set_rate, we can obtain from the market rate using the created_at time.
+    // Also the triggered_at can be obtained by checking if price has ever gone up after the creation. This may affect performance that is why it is here. 
+    // But we can use a materialized_view to hold untriggered alerts
     getQuery() {
         return ` 
     SELECT 
       ${toString(table.price_alert_id)} as id,
       ${toString(table.base)} as base,
       ${toString(table.quota)} as quota,
-      ${toFloat(table.target_rate)} as target_rate,
-      ${toFloat(table.set_rate)} as created_rate,
+      ${removeTrailingZeroesFromNumeric(table.target_rate)} as target_rate,
+      ${removeTrailingZeroesFromNumeric(table.set_rate)} as created_rate,
       ${timestampToNumeric(table.created_at)} as created_at,
       ${timestampToNumeric(table.triggered_at)} as triggered_at
     FROM 
