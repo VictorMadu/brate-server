@@ -6,8 +6,8 @@ import "../user";
 import "../wallet";
 import "../market";
 import "../currency";
-// import "./_ws";
-// import "./_crons";
+import "../_ws";
+import "../_crons";
 
 export class AppStarter {
     bootstrap: Bootstrap;

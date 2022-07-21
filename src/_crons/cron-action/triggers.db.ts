@@ -1,68 +1,72 @@
-import { Injectable } from "nist-core/injectables";
+import { Injectable } from "victormadu-nist-core";
 import { PoolClient } from "pg";
 import {
-  blackRates,
-  notifications,
-  parallelRates,
-  price_alerts,
-  users,
-  wallet_currency_transactions as transactions,
+    blackRates,
+    notifications,
+    parallelRates,
+    price_alerts,
+    users,
+    wallet_currency_transactions as transactions,
 } from "../../utils/postgres-db-types/erate";
 import { DeleteExpiredNotificationFnQueryCreator } from "./set-delete-expired-notifications.db";
 import { UpdateParallelRatePostgresDbManager } from "./update-parallel-rate.db.manager";
 
 @Injectable()
 export class NotificationTriggerAndFunctionDbService {
-  private psql!: PoolClient;
+    private psql!: PoolClient;
 
-  parallel_trigger_check = "parallel_trigger_check";
-  black_trigger_check = "black_trigger_check";
-  delete_for_expired_notifications = "delete_for_expired_notifications";
-  transactions_notification = "transactions_notification";
-  store_notification_for_triggered_at = "store_notification_for_triggered_at";
-  notify_new_notification = "notify_new_notification";
+    parallel_trigger_check = "parallel_trigger_check";
+    black_trigger_check = "black_trigger_check";
+    delete_for_expired_notifications = "delete_for_expired_notifications";
+    transactions_notification = "transactions_notification";
+    store_notification_for_triggered_at = "store_notification_for_triggered_at";
+    notify_new_notification = "notify_new_notification";
 
-  constructor(private dbManager: UpdateParallelRatePostgresDbManager) {}
+    constructor(private dbManager: UpdateParallelRatePostgresDbManager) {}
 
-  private async onReady() {
-    this.psql = this.dbManager.getPsql();
-    await this.startTriggers();
-  }
+    private async onReady() {
+        this.psql = this.dbManager.getPsql();
+        await this.startTriggers();
+    }
 
-  private async startTriggers() {
-    await this.psql.query(
-      new ParallelRateInsertAlertTriggerQueryCreator().getQuery(this.parallel_trigger_check)
-    );
-    await this.psql.query(
-      new BlackRateInsertAlertTriggerQueryCreator().getQuery(this.black_trigger_check)
-    );
-    await this.psql.query(
-      new NotificationStoreForTransactionQueryCreator().getQuery(this.transactions_notification)
-    );
-    await this.psql.query(
-      new NotificationStoreForPriceTriggeredQueryCreator().getQuery(
-        this.store_notification_for_triggered_at
-      )
-    );
-    await this.psql.query(
-      new NotifyNewNotificationsQueryCreator().getQuery(this.notify_new_notification)
-    );
-    await this.psql.query(
-      new DeleteExpiredNotificationFnQueryCreator().getQuery(this.delete_for_expired_notifications)
-    );
-  }
+    private async startTriggers() {
+        await this.psql.query(
+            new ParallelRateInsertAlertTriggerQueryCreator().getQuery(this.parallel_trigger_check)
+        );
+        await this.psql.query(
+            new BlackRateInsertAlertTriggerQueryCreator().getQuery(this.black_trigger_check)
+        );
+        await this.psql.query(
+            new NotificationStoreForTransactionQueryCreator().getQuery(
+                this.transactions_notification
+            )
+        );
+        await this.psql.query(
+            new NotificationStoreForPriceTriggeredQueryCreator().getQuery(
+                this.store_notification_for_triggered_at
+            )
+        );
+        await this.psql.query(
+            new NotifyNewNotificationsQueryCreator().getQuery(this.notify_new_notification)
+        );
+        await this.psql.query(
+            new DeleteExpiredNotificationFnQueryCreator().getQuery(
+                this.delete_for_expired_notifications
+            )
+        );
+    }
 
-  async deleteExpiredNotification() {
-    const result = await this.psql.query(`
-      SELECT ${this.delete_for_expired_notifications}()
-    `);
-    return result;
-  }
+    async deleteExpiredNotification() {
+        const result = await this.psql.query(`
+            SELECT ${this.delete_for_expired_notifications}()
+        `);
+        return result;
+    }
 }
 
 class ParallelRateInsertAlertTriggerQueryCreator {
-  getQuery(funcName: string) {
-    return `
+    getQuery(funcName: string) {
+        return `
     CREATE OR REPLACE FUNCTION ${funcName}() RETURNS TRIGGER AS 
     $${funcName}$
     DECLARE
@@ -113,12 +117,12 @@ class ParallelRateInsertAlertTriggerQueryCreator {
     CREATE OR REPLACE TRIGGER ${funcName}_trigger AFTER INSERT ON ${parallelRates.$$NAME}
     FOR EACH STATEMENT EXECUTE FUNCTION ${funcName}();
     `;
-  }
+    }
 }
 
 class BlackRateInsertAlertTriggerQueryCreator {
-  getQuery(funcName: string) {
-    return `
+    getQuery(funcName: string) {
+        return `
       CREATE OR REPLACE FUNCTION ${funcName}() RETURNS TRIGGER AS 
       $${funcName}$
       BEGIN 
@@ -143,12 +147,12 @@ class BlackRateInsertAlertTriggerQueryCreator {
       CREATE OR REPLACE TRIGGER ${funcName}_trigger AFTER INSERT ON ${blackRates.$$NAME}
       FOR EACH ROW EXECUTE FUNCTION ${funcName}();
     `;
-  }
+    }
 }
 
 class NotificationStoreForTransactionQueryCreator {
-  getQuery(funcName: string) {
-    return `
+    getQuery(funcName: string) {
+        return `
       CREATE OR REPLACE FUNCTION ${funcName}() RETURNS TRIGGER AS
         $${funcName}$
         DECLARE
@@ -215,12 +219,12 @@ class NotificationStoreForTransactionQueryCreator {
         CREATE OR REPLACE TRIGGER ${funcName}_trigger AFTER INSERT ON ${transactions.$$NAME}
         FOR EACH ROW EXECUTE FUNCTION ${funcName}();
     `;
-  }
+    }
 }
 
 class NotificationStoreForPriceTriggeredQueryCreator {
-  getQuery(funcName: string) {
-    return `
+    getQuery(funcName: string) {
+        return `
       CREATE OR REPLACE FUNCTION ${funcName}() RETURNS TRIGGER AS 
       $${funcName}$
       DECLARE
@@ -261,12 +265,12 @@ class NotificationStoreForPriceTriggeredQueryCreator {
       CREATE OR REPLACE TRIGGER ${funcName}_trigger AFTER UPDATE ON ${price_alerts.$$NAME}
       FOR EACH ROW EXECUTE FUNCTION ${funcName}();
     `;
-  }
+    }
 }
 
 class NotifyNewNotificationsQueryCreator {
-  getQuery(funcName: string) {
-    return `
+    getQuery(funcName: string) {
+        return `
       CREATE OR REPLACE FUNCTION ${funcName}() RETURNS TRIGGER AS 
       $${funcName}$
       BEGIN
@@ -278,5 +282,5 @@ class NotifyNewNotificationsQueryCreator {
       CREATE OR REPLACE TRIGGER ${funcName}_trigger AFTER INSERT ON ${notifications.$$NAME}
       FOR EACH ROW EXECUTE FUNCTION ${funcName}();
     `;
-  }
+    }
 }
