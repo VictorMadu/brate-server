@@ -14,8 +14,8 @@ export class Service {
     constructor(private dbService: DbService, private authManager: AuthManagerService) {}
 
     async handle(inData: ServiceInData): Promise<[number, string]> {
-        console.log("Service inData", inData);
         if (inData.targetRate <= 0) return [400, "Bad request"];
+
         const userId = this.authManager.parse(inData.authToken).userId;
         if (!userId) return [401, "authentication Failed"];
 
