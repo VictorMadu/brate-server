@@ -8,4 +8,5 @@ export interface User {
     phone: string;
     createdAt: Date;
     verifiedAt: Date;
+    isBank: boolean;
 }

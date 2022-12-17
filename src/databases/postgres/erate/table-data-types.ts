@@ -6,6 +6,7 @@ export interface User {
     [Table.Users.name]: string;
     [Table.Users.password]: string;
     [Table.Users.phone]: string;
+    [Table.Users.is_bank]: boolean;
     [Table.Users.created_at]: Date;
 }
 
@@ -28,7 +29,7 @@ export interface Notification {
 }
 
 export interface Currency {
-    [Table.Currencies.currency_id]: string;
+    [Table.Currencies.currency_id]: number;
     [Table.Currencies.iso]: string;
     [Table.Currencies.name]: string;
 }
@@ -48,7 +49,7 @@ export interface PriceAlert {
     [Table.PriceAlerts.market_type]: 'P' | 'B';
     [Table.PriceAlerts.base]: string;
     [Table.PriceAlerts.quota]: string;
-    [Table.PriceAlerts.set_rate]: string;
+    // [Table.PriceAlerts.set_rate]: string;
     [Table.PriceAlerts.target_rate]: string;
     [Table.PriceAlerts.created_at]: Date;
     [Table.PriceAlerts.deleted_at]: Date | null;

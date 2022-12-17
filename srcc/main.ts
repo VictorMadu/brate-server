@@ -21,7 +21,5 @@ async function main() {
         }
     });
 
-    express.listen(port, () => {
-        console.log('Server started and listening to port =>', port);
-    });
+    express.listen(port, () => {});
 }

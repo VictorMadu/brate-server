@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(64) NOT NULL,
   password VARCHAR(64) NOT NULL,
   phone VARCHAR(16) NOT NULL,
+  is_bank BOOLEAN NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -25,8 +26,8 @@ ALTER TABLE user_verifications ADD FOREIGN KEY(user_id) REFERENCES users(user_id
 -- About each fields and data type and why the field and datatype
 
 CREATE TABLE IF NOT EXISTS currencies (
-  currency_id INT UNIQUE GENERATED ALWAYS AS IDENTITY,
-  iso CHAR(3) NOT NULL PRIMARY KEY,
+  currency_id INT UNIQUE GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  iso CHAR(3) NOT NULL UNIQUE,
   name VARCHAR(64)
 );
 
@@ -73,7 +74,7 @@ ADD CONSTRAINT base_quota_diff_check CHECK (base <> quota);
 CREATE TABLE IF NOT EXISTS price_alerts (
   price_alert_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   user_id uuid NOT NULL,  
-  target_rate NUMERIC(16,6) NOT NULL,
+  target_rate NUMERIC(16,6) NOT NULL, -- Should be materialized view
   base INT NOT NULL,
   quota INT NOT NULL,
   market_type CHAR(1) CHECK (market_type IN ('P', 'B')),  -- P for parallel_rates, B for black_rates
@@ -125,13 +126,13 @@ ADD FOREIGN KEY (to_quota_transaction_id) REFERENCES transactions(transaction_id
 CREATE TABLE wallets (
   user_id uuid NOT NULL, 
   transaction_id uuid NOT NULL,
-  currency_id INT NOT NULL
+  head_transaction_id INT NOT NULL
 );
 
 ALTER TABLE wallets
 ADD FOREIGN KEY (user_id) REFERENCES users(user_id),
 ADD FOREIGN KEY (transaction_id) REFERENCES transactions(transaction_id),
-ADD FOREIGN KEY (currency_id) REFERENCES currencies(currency_id);
+ADD FOREIGN KEY (head_transaction_id) REFERENCES currencies(head_transaction_id);
 
 CREATE UNIQUE INDEX unique_wallets_idx ON wallets(user_id, currency_id);
 

@@ -1,14 +1,15 @@
-import User from '../../../Domain/Aggregates/User';
-import UserVerifcation from '../../../Domain/Entities/UserVerification';
+import { User } from '../Entities/User';
+import { UserVerification } from '../Entities/UserVerification';
+import { Nullable } from '../Types';
 
 export default interface AuthTokenManager {
     generate(payloadData: PayloadData): TokenData;
-    parse(tokenData: TokenData): PayloadData;
+    parse(token: TokenData['token']): PayloadData;
 }
 
 export interface PayloadData {
-    user: Pick<User, 'userId'>;
-    verification: Pick<UserVerifcation, 'verifiedAt'>;
+    user: Pick<User, 'userId' | 'isBank'>;
+    verification: Nullable<Pick<UserVerification, 'verifiedAt'>>;
 }
 
 export interface TokenData {

@@ -40,11 +40,11 @@ export interface Filters {
 export default class CurrenciesRepository {
     constructor(private runner: Runner<string, QueryResult<any>>) {}
 
-    async openMarket(inData: {
+    async openBlackMarket(inData: {
         blackRateModel: Pick<BlackRateModel, 'userId' | 'base' | 'quota' | 'rate'>;
     }): Promise<boolean> {
         const result = await this.runner.run(
-            CurrenciesRepository.OpenMarketQuery,
+            CurrenciesRepository.openBlackMarketQuery,
             inData.blackRateModel.userId,
             inData.blackRateModel.base,
             inData.blackRateModel.quota,
@@ -54,11 +54,11 @@ export default class CurrenciesRepository {
         return !!result.rowCount;
     }
 
-    async closeMarket(inData: {
+    async closeBlackMarket(inData: {
         blackRateModel: Pick<BlackRateModel, 'userId' | 'base' | 'quota'>;
     }): Promise<boolean> {
         const result = await this.runner.run(
-            CurrenciesRepository.CloseMarketQuery,
+            CurrenciesRepository.closeBlackMarketQuery,
             inData.blackRateModel.userId,
             inData.blackRateModel.base,
             inData.blackRateModel.quota,
@@ -66,15 +66,13 @@ export default class CurrenciesRepository {
         return !!result.rowCount;
     }
 
-    async getOverAllRates(inData: { filters: Filters }) {
+    async getOverAllBlackRates(inData: { filters: Filters }) {
         const result: QueryResult<
             Pick<RawBlackRateModel, 'base' | 'quota' | 'rates' | 'created_ats'>
         > = await this.runner.run(
             CurrenciesRepository.GetOverallQuery,
             ...this.getArgsForGetRunner(inData.filters),
         );
-
-        console.log('getOverAllRates result rows', result.rows);
 
         return result.rows.map(
             (row): Pick<BlackRateModel, 'base' | 'quota' | 'rates' | 'createdAts'> => {
@@ -88,15 +86,13 @@ export default class CurrenciesRepository {
         );
     }
 
-    async getSpecificRates(inData: { filters: Filters }) {
+    async getSpecificBlackRates(inData: { filters: Filters }) {
         const result: QueryResult<
             Pick<RawBlackRateModel, 'base' | 'quota' | 'rates' | 'created_ats' | 'user_id'>
         > = await this.runner.run(
             CurrenciesRepository.GetSpecificQuery,
             ...this.getArgsForGetRunner(inData.filters),
         );
-
-        console.log('getOverAllRates result rows', result.rows);
 
         return result.rows.map(
             (row): Pick<BlackRateModel, 'userId' | 'base' | 'quota' | 'rates' | 'createdAts'> => {
@@ -135,7 +131,7 @@ export default class CurrenciesRepository {
         ];
     }
 
-    private static OpenMarketQuery = `
+    private static openBlackMarketQuery = `
         INSERT INTO ${BlackRates.$$NAME}
         (
             ${BlackRates.user_id},
@@ -154,7 +150,7 @@ export default class CurrenciesRepository {
         )
     `;
 
-    private static CloseMarketQuery = `
+    private static closeBlackMarketQuery = `
         INSERT INTO ${BlackRates.$$NAME}
         (
             ${BlackRates.user_id},

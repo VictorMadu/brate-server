@@ -1,3 +1,3 @@
 export default interface NumPasswordGenerator {
-    generate(length: number): number;
+    generate(length: number): string;
 }

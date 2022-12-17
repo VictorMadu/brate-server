@@ -1,7 +1,7 @@
 export interface UserVerification {
     verificationId: string;
     hashedOTP: string;
-    otp: number;
+    otp: string;
     noOfTries: number;
     createdAt: Date;
     verifiedAt: Date;

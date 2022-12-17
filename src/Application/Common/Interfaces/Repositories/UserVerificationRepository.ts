@@ -19,14 +19,16 @@ export default interface UserVerificationRepository {
 
     saveNewOTP(inData: {
         user: AtLeastOne<Pick<User, 'userId' | 'email'>>;
-        verification: Pick<UserVerification, 'hashedOTP' | 'createdAt' | 'verifiedAt'>;
-    }): Promise<
-        Pick<UserVerification, 'verificationId' | 'noOfTries' | 'createdAt' | 'verifiedAt'>
-    >;
+        verification: Pick<UserVerification, 'hashedOTP'>;
+    }): Promise<Pick<UserVerification, 'verificationId' | 'createdAt' | 'verifiedAt'>>;
 
     updateRetries(inData: {
         user: AtLeastOne<Pick<User, 'userId' | 'email'>>;
     }): Promise<
         Pick<UserVerification, 'verificationId' | 'noOfTries' | 'createdAt' | 'verifiedAt'>
     >;
+
+    setVerified(inData: {
+        user: AtLeastOne<Pick<User, 'userId' | 'email'>>;
+    }): Promise<Pick<UserVerification, 'verifiedAt' | 'verificationId'>>;
 }

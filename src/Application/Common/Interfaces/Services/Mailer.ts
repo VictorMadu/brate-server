@@ -1,6 +1,6 @@
-import User from '../../../Domain/Aggregates/User';
-import UserVerifcation from '../../../Domain/Entities/UserVerification';
+import { User } from '../Entities/User';
+import { UserVerification } from '../Entities/UserVerification';
 
 export default interface Mailer {
-    sendVerificationMail(user: User, verification: UserVerifcation): Promise<void>;
+    sendVerificationMail(user: { email: string }, verification: { otp: string }): Promise<void>;
 }

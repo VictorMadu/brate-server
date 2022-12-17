@@ -5,6 +5,7 @@ export const Users = {
     name: 'name' as 'name',
     password: 'password' as 'password',
     phone: 'phone' as 'phone',
+    is_bank: 'is_bank' as 'is_bank',
     created_at: 'created_at' as 'created_at',
 };
 
@@ -52,7 +53,7 @@ export const PriceAlerts = {
     market_type: 'market_type' as 'market_type',
     base: 'base' as 'base',
     quota: 'quota' as 'quota',
-    set_rate: 'set_rate' as 'set_rate',
+    // set_rate: 'set_rate' as 'set_rate',
     target_rate: 'target_rate' as 'target_rate',
     triggered_at: 'triggered_at' as 'triggered_at',
     created_at: 'created_at' as 'created_at',
