@@ -1,8 +1,8 @@
 export interface NotificationRetrievalCommandRequest {
     authToken: string;
-    dateTimeFrom: Date;
-    dateTimeTo: Date;
-    type: 'P' | 'F' | 'T';
+    dateTimeFrom?: Date;
+    dateTimeTo?: Date;
+    type?: 'P' | 'F' | 'T';
     pageOffset: number;
     pageCount: number;
 }

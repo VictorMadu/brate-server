@@ -3,7 +3,6 @@ import { Runner } from '../../Application/Common/Interfaces/Database/Runner';
 import {
     BlackRates,
     Currencies,
-    PriceAlerts,
     Trades,
     Transactions,
     Users,

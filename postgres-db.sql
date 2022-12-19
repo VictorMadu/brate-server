@@ -71,20 +71,35 @@ ADD FOREIGN KEY(quota) REFERENCES currencies(currency_id),
 ADD FOREIGN KEY(user_id) REFERENCES users(user_id),
 ADD CONSTRAINT base_quota_diff_check CHECK (base <> quota);
 
-CREATE TABLE IF NOT EXISTS price_alerts (
-  price_alert_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id uuid NOT NULL,  
+CREATE TABLE IF NOT EXISTS rate_alerts (
+  rate_alerts_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   target_rate NUMERIC(16,6) NOT NULL, -- Should be materialized view
   base INT NOT NULL,
   quota INT NOT NULL,
-  market_type CHAR(1) CHECK (market_type IN ('P', 'B')),  -- P for parallel_rates, B for black_rates
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   triggered_at TIMESTAMPTZ,
   deleted_at TIMESTAMPTZ
 );
 
-ALTER TABLE price_alerts ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
+CREATE TABLE IF NOT EXISTS official_rate_alerts (
+  rate_alerts_id uuid PRIMARY KEY,
+  user_id uuid NOT NULL
+);
 
+ALTER TABLE official_rate_alerts 
+ADD FOREIGN KEY(rate_alerts_id) REFERENCES rate_alerts(rate_alerts_id),
+ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
+
+
+CREATE TABLE IF NOT EXISTS bank_rate_alerts (
+  rate_alerts_id uuid PRIMARY KEY,
+  user_id uuid NOT NULL, 
+  bank_user_id uuid NOT NULL 
+);
+
+ALTER TABLE bank_rate_alerts 
+ADD FOREIGN KEY(rate_alerts_id) REFERENCES rate_alerts(rate_alerts_id),
+ADD FOREIGN KEY(user_id) REFERENCES users(user_id);
 
 --  =============================================== transactions ===========================================================
 CREATE TABLE IF NOT EXISTS transactions (
@@ -100,7 +115,7 @@ ADD CONSTRAINT valid_transaction_amount_check CHECK (amount >= 0);
 
 --  =============================================== transfer_transactions ===========================================================
 
-CREATE TABLE IF NOT EXISTS trades (
+CREATE TABLE IF NOT EXISTS trades (postgresDb
   trade_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   black_rate_id uuid NOT NULL,
   buyer_id uuid NOT NULL,

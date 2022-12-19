@@ -16,9 +16,7 @@ export default class GetOfficialRatesManager {
     constructor(private commandRequest: GetOfficialRatesCommandRequest) {}
 
     async obtainRates(marketRepository: MarketRepository) {
-        console.log(' this.rateData', this.rateData);
         this.rateData = await marketRepository.getOfficialMarketRate(this.commandRequest);
-        console.log(' this.rateData', this.rateData);
     }
 
     getResponse(): GetOfficialRatesCommandResponse {

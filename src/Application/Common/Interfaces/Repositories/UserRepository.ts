@@ -24,4 +24,9 @@ export default interface UserRepository {
         filter: AtLeastOne<{ id: string; email: string }>;
         user: Partial<Pick<User, 'name' | 'phone'>>;
     }): Promise<boolean>;
+
+    getBankUserList(inData: {
+        limit: number;
+        offset: number;
+    }): Promise<{ userId: string; name: string }[]>;
 }

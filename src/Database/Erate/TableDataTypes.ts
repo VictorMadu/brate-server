@@ -43,17 +43,25 @@ export interface UserFavouritePair {
     [Table.UserFavouritePairs.deleted_at]: Date | null;
 }
 
-export interface PriceAlert {
-    [Table.PriceAlerts.price_alert_id]: string;
-    [Table.PriceAlerts.user_id]: string;
-    [Table.PriceAlerts.market_type]: 'P' | 'B';
-    [Table.PriceAlerts.base]: number;
-    [Table.PriceAlerts.quota]: number;
-    [Table.PriceAlerts.set_rate]: string;
-    [Table.PriceAlerts.target_rate]: string;
-    [Table.PriceAlerts.created_at]: Date;
-    [Table.PriceAlerts.deleted_at]: Date | null;
-    [Table.PriceAlerts.triggered_at]: Date | null;
+export interface RateAlert {
+    [Table.RateAlerts.rate_alerts_id]: string;
+    [Table.RateAlerts.base]: number;
+    [Table.RateAlerts.quota]: number;
+    [Table.RateAlerts.target_rate]: number;
+    [Table.RateAlerts.created_at]: Date;
+    [Table.RateAlerts.deleted_at]: Date | null;
+    [Table.RateAlerts.triggered_at]: Date | null;
+}
+
+export interface OfficialRateAlerts {
+    [Table.OfficialRateAlerts.rate_alerts_id]: string;
+    [Table.OfficialRateAlerts.user_id]: string;
+}
+
+export interface BankRateAlerts {
+    [Table.BankRateAlerts.rate_alerts_id]: string;
+    [Table.BankRateAlerts.user_id]: string;
+    [Table.BankRateAlerts.bank_user_id]: string;
 }
 
 export interface ParallelRate {

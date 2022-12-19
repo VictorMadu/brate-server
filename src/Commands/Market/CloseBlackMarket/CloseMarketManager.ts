@@ -1,6 +1,5 @@
 import BlackRate from '../../../Application/Common/Interfaces/Entities/BlackRate';
 import Currency from '../../../Application/Common/Interfaces/Entities/Currency';
-import PriceAlert from '../../../Application/Common/Interfaces/Entities/PriceAlert';
 import { User } from '../../../Application/Common/Interfaces/Entities/User';
 import NotificationRepository from '../../../Application/Common/Interfaces/Repositories/NotificationRepository';
 import AuthTokenManager from '../../../Application/Common/Interfaces/Services/AuthTokenManager';
@@ -20,7 +19,9 @@ export default class CloseBlackMarketManager {
 
     async populateUserFromAuthManager(authTokenManager: AuthTokenManager) {
         const tokenData = authTokenManager.parse(this.commandRequest.authToken);
-        this.user.userId = tokenData.user.userId;
+
+        if (!tokenData.user.isBank) throw new Error();
+        else this.user.userId = tokenData.user.userId;
     }
 
     async updatePresistor(marketRepository: MarketRepository) {

@@ -113,6 +113,41 @@ export default class ErateUserRepository implements UserRepository {
         return !!result.rowCount;
     }
 
+    async getBankUserList(inData: { limit: number; offset: number }) {
+        const result: QueryResult<{ user_id: string; name: string }> = await this.runner.run(
+            ErateUserRepository.GetBankUserListQuery,
+            inData.offset,
+            inData.limit,
+        );
+
+        return result.rows.map((row) => {
+            return {
+                userId: row.user_id,
+                name: row.name,
+            };
+        });
+    }
+
+    private static GetBankUserListQuery = `
+        WITH in_data AS (
+            SELECT 
+                *
+            FROM (
+                VALUES ((%L)::INTEGER, (%L)::INTEGER)
+            )
+            AS t(_offset, _limit)
+        )
+        SELECT 
+            ${Users.user_id} user_id,
+            ${Users.name} name
+        FROM 
+            ${Users.$$NAME}
+        WHERE
+            ${Users.is_bank} = TRUE
+        OFFSET (SELECT _offset FROM in_data)
+        LIMIT (SELECT _limit FROM in_data)
+    `;
+
     private static GetQuery = `
         SELECT 
             ${Users.user_id} user_id,

@@ -1,14 +1,6 @@
 import { QueryResult } from 'pg';
 import { Runner } from '../../Application/Common/Interfaces/Database/Runner';
-import {
-    BlackRates,
-    Currencies,
-    ParallelRates,
-    PriceAlerts,
-    Transactions,
-    Users,
-    Wallets,
-} from '../../Database/Erate/Tables';
+import { BlackRates, Currencies, ParallelRates, Users, Wallets } from '../../Database/Erate/Tables';
 import * as TableDataType from '../../Database/Erate/TableDataTypes';
 import _ from 'lodash';
 import BlackRate from '../../Application/Common/Interfaces/Entities/BlackRate';
@@ -156,6 +148,7 @@ export default class MarketRepository {
     // }
 
     async getSpecificBlackRates(inData: { filters: Filters }) {
+        console.log('inData.filters', inData.filters);
         const result: QueryResult<
             Pick<
                 RawBlackRateModel,
@@ -359,9 +352,23 @@ export default class MarketRepository {
         WITH in_data AS (
             SELECT * FROM 
             (
-                VALUES ((%L)::TEXT[], (%L)::INTEGER[], (%L)::INTEGER[], (%L)::BIGINT, (%L)::TEXT[], (%L)::NUMERIC, (%L)::NUMERIC, (%L)::TIMESTAMPTZ, (%L)::TIMESTAMPTZ,(%L)::INTEGER, (%L)::INTEGER)
+                VALUES (
+                    (%L)::TEXT,
+                    (%L)::INTEGER, 
+                    (%L)::INTEGER, 
+                    (%L)::BIGINT, 
+                    (%L)::TEXT, 
+                    (%L)::NUMERIC, 
+                    (%L)::NUMERIC, 
+                    (%L)::TIMESTAMPTZ, 
+                    (%L)::TIMESTAMPTZ,
+                    (%L)::INTEGER, 
+                    (%L)::INTEGER
+                )
             )
-            AS t(rate_ids, base_ids, quota_ids, interval, user_ids, min_rate, max_rate, min_created_at, max_created_at,history_length, max_total_size)
+            AS t(
+                rate_ids, 
+                base_ids, quota_ids, interval, user_ids, min_rate, max_rate, min_created_at, max_created_at,history_length, max_total_size)
             
         ),
         stage1 AS (
@@ -369,33 +376,39 @@ export default class MarketRepository {
                 ${BlackRates.user_id},
                 ${BlackRates.base},
                 ${BlackRates.quota},
-                floor(EXTRACT(EPOCH FROM ${BlackRates.created_at} ) / %L) ${BlackRates.created_at}
+                floor(
+                    EXTRACT(EPOCH FROM ${BlackRates.created_at} ) /
+                    (SELECT interval FROM in_data)
+                ) 
             )
                 ${BlackRates.black_rates_id} bank_rate_id,
                 ${BlackRates.user_id} user_id,
                 ${BlackRates.base} base,
                 ${BlackRates.quota} quota,
                 FIRST_VALUE(${BlackRates.rate}) OVER w1 rate, 
-                floor(EXTRACT(EPOCH FROM ${BlackRates.created_at} ) / %L) created_at,
+                floor(
+                    EXTRACT(EPOCH FROM ${BlackRates.created_at} ) /
+                    (SELECT interval FROM in_data)
+                )  created_at,
                 ROW_NUMBER() OVER w2 row_no
             FROM 
                 ${BlackRates.$$NAME}
             WHERE 
                 (
-                    ${BlackRates.black_rates_id} IN (SELECT rate_ids FROM in_data) OR
+                    ${BlackRates.black_rates_id}::TEXT IN (SELECT rate_ids FROM in_data) OR
                     (SELECT rate_ids FROM in_data) IS NULL
                 ) AND
                 (
-                    ${BlackRates.user_id} IN (SELECT user_ids FROM in_data) OR
+                    ${BlackRates.user_id}::text IN (SELECT user_ids FROM in_data) OR
                     (SELECT user_ids FROM in_data) IS NULL
                 ) AND
                 (
-                    ${BlackRates.base} = (SELECT base FROM in_data) OR
-                    (SELECT base FROM in_data) IS NULL
+                    ${BlackRates.base} = (SELECT base_ids FROM in_data) OR
+                    (SELECT base_ids FROM in_data) IS NULL
                 ) AND
                 (
-                    ${BlackRates.quota} = (SELECT quota FROM in_data) OR
-                    (SELECT quota FROM in_data) IS NULL
+                    ${BlackRates.quota} = (SELECT quota_ids FROM in_data) OR
+                    (SELECT quota_ids FROM in_data) IS NULL
                 ) AND
                 (
                     ${BlackRates.rate} >= (SELECT min_rate FROM in_data) OR
@@ -433,11 +446,11 @@ export default class MarketRepository {
         ),
         stage2 AS (
             SELECT
-                s.bank_rate_id
                 u.user_id,
                 u.name user_name,
                 s.base,
                 s.quota,
+                ARRAY_AGG(s.bank_rate_id) bank_rate_id,
                 ARRAY_AGG(s.rate) rates,
                 ARRAY_AGG(s.row_no) row_nos,
                 ARRAY_AGG(s.created_at) created_ats
@@ -462,7 +475,7 @@ export default class MarketRepository {
     // TODO: Remove clue of the server timezone using AT TIMEZONE 'UTC'
     private static GetParallelMarketQuery = `
         WITH in_data AS (
-            SELECT * FROM (VALUES ((%L)::BIGINT, (%L)::BIGINT[], (%L)::BIGINT, (%L)::TIMESTAMPTZ, (%L)::TIMESTAMPTZ, (%L)::INTEGER))
+            SELECT * FROM (VALUES ((%L)::INTEGER, (%L)::INTEGER[], (%L)::BIGINT, (%L)::TIMESTAMPTZ, (%L)::TIMESTAMPTZ, (%L)::INTEGER))
             AS t(base, quotas, interval, min_created_at, max_created_at, history_length)
         ),
         stage1 AS (
@@ -491,7 +504,7 @@ export default class MarketRepository {
                 ) OR 
                 (
                     (SELECT quotas FROM in_data) IS NULL OR
-                    ${ParallelRates.currency_id} IN (SELECT quotas FROM in_data)
+                    ${ParallelRates.currency_id} IN (SELECT UNNEST(quotas) FROM in_data)
                 ) OR
                 (
                     ${ParallelRates.created_at} >= (SELECT min_created_at FROM in_data) OR
@@ -547,6 +560,7 @@ export default class MarketRepository {
         SELECT * FROM stage3
     `;
 
+    // TODO: Use time as a determinant for generating new rate
     static UpdateParallelMarketWithSelfGeneratedDataQuery = `
         INSERT INTO
             ${ParallelRates.$$NAME}
@@ -554,7 +568,7 @@ export default class MarketRepository {
 
         SELECT DISTINCT ON (${ParallelRates.currency_id})
             ${ParallelRates.currency_id}, 
-            COALESCE((FIRST_VALUE(${ParallelRates.rate}) OVER w), 1) + COALESCE((FIRST_VALUE(${ParallelRates.rate}) OVER w), 0) * (RANDOM() - 0.5) * 0.04
+            COALESCE((FIRST_VALUE(${ParallelRates.rate}) OVER w), 1) + COALESCE((FIRST_VALUE(${ParallelRates.rate}) OVER w), 0) * (RANDOM() - 0.5) * 0.0095
 
         FROM 
             ${ParallelRates.$$NAME}

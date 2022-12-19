@@ -1,14 +1,21 @@
-export interface SetAlertCommandRequest {
+export type SetAlertCommandRequest = {
     authToken: string;
-    pairs: {
-        base: string;
-        quota: string;
+    bank?: {
+        bankUserId: string;
+        baseCurrencyId: number;
+        quotaCurrencyId: number;
         targetRate: string;
-        marketType: 'P' | 'B';
-    }[];
-}
+    };
+    official?: { baseCurrencyId: number; quotaCurrencyId: number; targetRate: string };
+};
 
-// TODO: Use the iterator and async iterator pattern
 export type SetAlertCommandResponse = {
-    priceAlertId: string;
-}[];
+    rateAlertId: string;
+    baseCurrencyId: string;
+    quotaCurrencyId: string;
+    targetRate: number;
+    createdAt: Date;
+    triggeredAt: Date;
+    observedUserId: string;
+    observedUserName: string;
+};

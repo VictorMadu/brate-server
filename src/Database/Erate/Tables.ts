@@ -46,18 +46,28 @@ export const UserFavouritePairs = {
     deleted_at: 'deleted_at' as 'deleted_at',
 };
 
-export const PriceAlerts = {
-    $$NAME: 'price_alerts' as 'price_alerts',
-    price_alert_id: 'price_alert_id' as 'price_alert_id',
-    user_id: 'user_id' as 'user_id',
-    market_type: 'market_type' as 'market_type',
+export const RateAlerts = {
+    $$NAME: 'rate_alerts' as 'rate_alerts',
+    rate_alerts_id: 'rate_alerts_id' as 'rate_alerts_id',
     base: 'base' as 'base',
     quota: 'quota' as 'quota',
-    set_rate: 'set_rate' as 'set_rate',
     target_rate: 'target_rate' as 'target_rate',
     triggered_at: 'triggered_at' as 'triggered_at',
     created_at: 'created_at' as 'created_at',
     deleted_at: 'deleted_at' as 'deleted_at',
+};
+
+export const OfficialRateAlerts = {
+    $$NAME: 'official_rate_alerts' as 'official_rate_alerts',
+    rate_alerts_id: 'rate_alerts_id' as 'rate_alerts_id',
+    user_id: 'user_id' as 'user_id',
+};
+
+export const BankRateAlerts = {
+    $$NAME: 'bank_rate_alerts' as 'bank_rate_alerts',
+    rate_alerts_id: 'rate_alerts_id' as 'rate_alerts_id',
+    user_id: 'user_id' as 'user_id',
+    bank_user_id: 'bank_user_id' as 'bank_user_id',
 };
 
 export const ParallelRates = {

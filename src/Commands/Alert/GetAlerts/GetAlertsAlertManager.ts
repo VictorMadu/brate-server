@@ -1,6 +1,5 @@
 import _ from 'lodash';
 import Currency from '../../../Application/Common/Interfaces/Entities/Currency';
-import PriceAlert from '../../../Application/Common/Interfaces/Entities/PriceAlert';
 import { User } from '../../../Application/Common/Interfaces/Entities/User';
 import NotificationRepository from '../../../Application/Common/Interfaces/Repositories/NotificationRepository';
 import AuthTokenManager from '../../../Application/Common/Interfaces/Services/AuthTokenManager';
@@ -10,7 +9,16 @@ import { GetAlertCommandRequest, GetAlertCommandResponse } from './GetAlertsComm
 
 export default class GetAlertManager {
     private user = {} as Pick<User, 'userId'>;
-    private priceAlerts: PriceAlert[] = [];
+    private priceAlerts: {
+        rateAlertId: string;
+        baseCurrencyId: string;
+        quotaCurrencyId: string;
+        targetRate: number;
+        createdAt: Date;
+        triggeredAt: Date;
+        observedUserId: string;
+        observedUserName: string;
+    }[] = [];
 
     constructor(private commandRequest: GetAlertCommandRequest) {}
 
@@ -20,27 +28,20 @@ export default class GetAlertManager {
     }
 
     async updatePresistor(alertRepository: AlertRepository) {
-        this.priceAlerts = await alertRepository.getAlert({
+        this.priceAlerts = await alertRepository.getAAlllert({
             filter: {
                 userId: this.user.userId,
-                pairs: this.commandRequest.pairs,
-                marketType: this.commandRequest.market,
-                isTriggered: this.commandRequest.onlyTriggered,
-                isNotTriggered: this.commandRequest.onlyUnTriggered,
+                baseIds: this.commandRequest.baseCurrencyId,
+                quotaIds: this.commandRequest.quotaCurrencyId,
+                rateAlertIds: this.commandRequest.rateAlertIds,
+                unTriggeredOnly: this.commandRequest.unTriggeredOnly,
+                triggeredOnly: this.commandRequest.triggeredOnly,
                 offset: this.commandRequest.pageOffset,
-                size: this.commandRequest.pageCount,
-                minCreatedAt:
-                    this.commandRequest.minCreatedAt &&
-                    _.floor(this.commandRequest.minCreatedAt?.getTime() / 1000),
-                maxCreatedAt:
-                    this.commandRequest.maxCreatedAt &&
-                    _.floor(this.commandRequest.maxCreatedAt?.getTime() / 1000),
-                minTriggeredAt:
-                    this.commandRequest.minTriggeredAt &&
-                    _.floor(this.commandRequest.minTriggeredAt?.getTime() / 1000),
-                maxTriggeredAt:
-                    this.commandRequest.maxTriggeredAt &&
-                    _.floor(this.commandRequest.maxTriggeredAt?.getTime() / 1000),
+                limit: this.commandRequest.pageCount,
+                minCreatedAt: this.commandRequest.minCreatedAt,
+                maxCreatedAt: this.commandRequest.maxCreatedAt,
+                minTriggeredAt: this.commandRequest.minTriggeredAt,
+                maxTriggeredAt: this.commandRequest.minCreatedAt,
             },
         });
     }

@@ -1,5 +1,5 @@
 import Currency from '../../../Application/Common/Interfaces/Entities/Currency';
-import PriceAlert from '../../../Application/Common/Interfaces/Entities/PriceAlert';
+
 import { User } from '../../../Application/Common/Interfaces/Entities/User';
 import NotificationRepository from '../../../Application/Common/Interfaces/Repositories/NotificationRepository';
 import AuthTokenManager from '../../../Application/Common/Interfaces/Services/AuthTokenManager';
@@ -9,34 +9,46 @@ import { SetAlertCommandRequest, SetAlertCommandResponse } from './SetAlertComma
 
 export default class SetAlertManager {
     private user = {} as Pick<User, 'userId'>;
-    private alertsIds: Pick<PriceAlert, 'priceAlertId'>[] = [];
+    private rateAlert = {} as {
+        rateAlertId: string;
+        baseCurrencyId: string;
+        quotaCurrencyId: string;
+        targetRate: number;
+        createdAt: Date;
+        triggeredAt: Date;
+        observedUserId: string;
+        observedUserName: string;
+    };
 
     constructor(private commandRequest: SetAlertCommandRequest) {}
 
     async populateUserFromAuthManager(authTokenManager: AuthTokenManager) {
         const tokenData = authTokenManager.parse(this.commandRequest.authToken);
+        console.log(' this.user.userId =', this.user.userId);
         this.user.userId = tokenData.user.userId;
     }
 
     async updatePresistor(alertRepository: AlertRepository) {
-        this.alertsIds = await Promise.all(
-            this.commandRequest.pairs.map((pair) =>
-                alertRepository.setAlert({
-                    alert: {
-                        userId: this.user.userId,
-                        base: pair.base,
-                        quota: pair.quota,
-                        marketType: pair.marketType,
-                        targetRate: pair.targetRate,
-                    },
-                }),
-            ),
-        );
+        if (this.commandRequest.official) {
+            this.rateAlert = await alertRepository.setOfficialAlert({
+                alert: {
+                    ...this.commandRequest.official,
+                    userId: this.user.userId,
+                },
+            });
+        } else if (this.commandRequest.bank) {
+            this.rateAlert = await alertRepository.setBankAlert({
+                alert: {
+                    ...this.commandRequest.bank,
+                    userId: this.user.userId,
+                },
+            });
+        }
     }
 
     async assertUpdateSuccessful() {}
 
     getResponse(): SetAlertCommandResponse {
-        return this.alertsIds;
+        return this.rateAlert;
     }
 }

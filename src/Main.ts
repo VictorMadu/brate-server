@@ -36,6 +36,17 @@ import { OpenBlackMarketCommandValidator } from './Commands/Market/OpenBlackMark
 import OpenBlackMarketCommandHandler from './Commands/Market/OpenBlackMarket/OpenMarketCommandHandler';
 import { CloseBlackMarketCommandValidator } from './Commands/Market/CloseBlackMarket/CloseMarketCommandValidator';
 import CloseBlackMarketCommandHandler from './Commands/Market/CloseBlackMarket/CloseMarketCommandHandler';
+import { SetAlertCommandValidator } from './Commands/Alert/SetAlert/SetAlertCommandValidator';
+import SetAlertCommandHandler from './Commands/Alert/SetAlert/SetAlertCommandHandler';
+import { DeleteAlertCommandValidator } from './Commands/Alert/DeleteAlert/DeleteAlertCommandValidator';
+import DeleteAlertCommandHandler from './Commands/Alert/DeleteAlert/DeleteAlertCommandHandler';
+import { SetAlertCommandRequest } from './Commands/Alert/SetAlert/SetAlertCommand';
+import { GetAlertsCommandValidator } from './Commands/Alert/GetAlerts/GetAlertsCommandValidator';
+import GetAlertsCommandHandler from './Commands/Alert/GetAlerts/GetAlertsCommandHandler';
+import BankProfileRetrievalCommandHandler from './Commands/Profile/BankProfileRetrievalCommand/BankProfileRetrievalCommandHandler';
+import { BankProfileRetrievalCommandValidator } from './Commands/Profile/BankProfileRetrievalCommand/BankProfieRetrievalCommandValidator';
+import NotificationRetrievalCommandHandler from './Commands/Notification/NotificationRetrieval/NotificationRetrievalCommandHandler';
+import { NotificationRetrievalCommandValidator } from './Commands/Notification/NotificationRetrieval/NotificationRetrievalCommandValidator';
 
 main();
 async function main() {
@@ -80,13 +91,12 @@ async function main() {
             res.setHeader('Access-Control-Allow-Origin', origin);
             res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
             res.setHeader('Access-Control-Allow-Headers', '*');
-            res.setHeader('Content-Length', '0');
 
             console.log('Here in CORS');
         }
 
         if (method === 'OPTIONS') {
-            return res.status(204).end();
+            return res.status(204).setHeader('Content-Length', '0').end();
         } else return next();
     });
 
@@ -218,6 +228,24 @@ async function main() {
         }),
     );
 
+    const bankProfileCommand = new BankProfileRetrievalCommandValidator(
+        new BankProfileRetrievalCommandHandler(repositories.getUserRepository()),
+    );
+
+    app.get(
+        '/v1/banks',
+        handleError(async (req, res) => {
+            const result = await bankProfileCommand.handle({
+                limit: req.query.limit,
+                offset: req.query.offset,
+            });
+
+            console.log('v1/banks', result);
+
+            res.status(200).send(result);
+        }),
+    );
+
     const getOfficialRatesCommand = new GetOfficialRatesCommandValidator(
         new GetOfficialRatesCommandHandler(repositories.getMarketRepository()),
     );
@@ -278,7 +306,7 @@ async function main() {
     );
 
     const openBankRateCommand = new OpenBlackMarketCommandValidator(
-        new OpenBlackMarketCommandHandler(repositories.getMarketRepository()),
+        new OpenBlackMarketCommandHandler(repositories.getMarketRepository(), jwtAuthTokenManager),
     );
 
     app.post(
@@ -310,6 +338,127 @@ async function main() {
             });
 
             console.log('/v1/rates/banks/:bankId/open', result);
+            res.status(200).send(result);
+        }),
+    );
+
+    const setAlertCommand = new SetAlertCommandValidator(
+        new SetAlertCommandHandler(repositories.getAlertRepository(), jwtAuthTokenManager),
+    );
+
+    app.post(
+        '/v1/alerts',
+        handleError(async (req, res) => {
+            const type = req.body.type as 'official' | 'bank';
+            let inData = {} as SetAlertCommandRequest;
+
+            if (type === 'official') {
+                inData = {
+                    authToken: req.headers.authorization?.split(' ')[1] as string,
+                    official: {
+                        baseCurrencyId: req.body.baseCurrencyId,
+                        quotaCurrencyId: req.body.quotaCurrencyId,
+                        targetRate: req.body.targetRate,
+                    },
+                };
+            } else {
+                inData = {
+                    authToken: req.headers.authorization?.split(' ')[1] as string,
+                    bank: {
+                        bankUserId: req.body.bankUserId,
+                        baseCurrencyId: req.body.baseCurrencyId,
+                        quotaCurrencyId: req.body.quotaCurrencyId,
+                        targetRate: req.body.targetRate,
+                    },
+                };
+            }
+
+            const result = await setAlertCommand.handle(inData);
+
+            res.status(200).send(result);
+        }),
+    );
+
+    const deleteAlertCommand = new DeleteAlertCommandValidator(
+        new DeleteAlertCommandHandler(repositories.getAlertRepository()),
+    );
+
+    app.delete(
+        '/v1/alerts',
+        handleError(async (req, res) => {
+            const result = await deleteAlertCommand.handle({
+                authToken: req.headers.authorization?.split(' ')[1] as string,
+                priceAlertIds: req.body.rateAlertIds as string[],
+            });
+
+            res.status(200).send(result);
+        }),
+    );
+
+    const getAlertsCommand = new GetAlertsCommandValidator(
+        new GetAlertsCommandHandler(repositories.getAlertRepository()),
+    );
+
+    app.get(
+        '/v1/alerts',
+        handleError(async (req, res) => {
+            const result = await getAlertsCommand.handle({
+                authToken: req.headers.authorization?.split(' ')[1] as string,
+                pageOffset: +(req.query.pageOffset as string),
+                pageCount: +(req.query.pageCount as string),
+                baseCurrencyId:
+                    req.query.baseId == null ? undefined : [+(req.query.baseId as string)],
+                quotaCurrencyId:
+                    req.query.quotaId == null ? undefined : [+(req.query.quotaId as string)],
+
+                minCreatedAt:
+                    req.query.minCreatedAt == null
+                        ? undefined
+                        : new Date(req.query.minCreatedAt as string),
+                maxCreatedAt:
+                    req.query.maxCreatedAt == null
+                        ? undefined
+                        : new Date(req.query.maxCreatedAt as string),
+                minTriggeredAt:
+                    req.query.minTriggeredAt == null
+                        ? undefined
+                        : new Date(req.query.minTriggeredAt as string),
+                maxTriggeredAt:
+                    req.query.maxTriggeredAt == null
+                        ? undefined
+                        : new Date(req.query.maxTriggeredAt as string),
+                unTriggeredOnly:
+                    req.query.unTriggeredOnly === 'y'
+                        ? true
+                        : req.query.unTriggeredOnly === 'n'
+                        ? false
+                        : undefined,
+                triggeredOnly:
+                    req.query.unTriggeredOnly === 'y'
+                        ? true
+                        : req.query.unTriggeredOnly === 'n'
+                        ? false
+                        : undefined,
+                rateAlertIds: req.query.rateAlertIds as string[] | undefined,
+            });
+
+            res.status(200).send(result);
+        }),
+    );
+
+    const notificationRetrievalCommand = new NotificationRetrievalCommandValidator(
+        new NotificationRetrievalCommandHandler(repositories.getNotificationRepository()),
+    );
+
+    app.get(
+        '/v1/notifications',
+        handleError(async (req, res) => {
+            const result = await notificationRetrievalCommand.handle({
+                authToken: req.headers.authorization?.split(' ')[1] as string,
+                pageOffset: +(req.query.pageOffset as string),
+                pageCount: +(req.query.pageCount as string),
+            });
+
             res.status(200).send(result);
         }),
     );
@@ -371,7 +520,7 @@ async function main() {
         process.exit(0);
     }
 
-    parallelRateUpdateTask.start();
+    // parallelRateUpdateTask.start();
 
     app.listen(config.get('port'), () => {
         console.log('Server listening to PORT', config.get('port'));

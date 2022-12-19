@@ -3,7 +3,7 @@ import UserRepository from '../../Application/Common/Interfaces/Repositories/Use
 import ErateDataAccessor from '../../Database/Erate/ErateDataAccessor';
 import PostgresDb from '../../Database/PostgresDb';
 import { Runner } from '../../databases/db';
-import NotificationRepository from '../../services/notifications/notification-repository';
+import NotificationRepository from '../../Application/Common/Interfaces/Repositories/NotificationRepository';
 import AlertRepository from './ErateAlertRepository';
 import MarketRepository from './ErateMarketRepository';
 import TradeRepository from './ErateTradeRepository';
@@ -11,6 +11,7 @@ import ErateUserRepository from './ErateUserRepository';
 import ErateUserVerificationRepository from './ErateUserVerificationRepository';
 import WalletRepository from './ErateWalletRepository';
 import CurrenciesRepository from './ErrateCurrencyPairRepository';
+import ErateNotificationRepository from './ErateNotificationRepository';
 
 export interface EratePostgresRepositories {
     getUserRepository: () => UserRepository;
@@ -43,7 +44,8 @@ export default class DependencyInjection {
         EratePostgres.getMarketRepository = () => new MarketRepository(services.runner);
         EratePostgres.getUserVerificationRepository = () =>
             new ErateUserVerificationRepository(services.runner);
-        EratePostgres.getNotificationRepository = () => new NotificationRepository(services.runner);
+        EratePostgres.getNotificationRepository = () =>
+            new ErateNotificationRepository(services.runner);
         EratePostgres.getTradeRepository = () => new TradeRepository(services.runner);
         EratePostgres.getWalletRepository = () => new WalletRepository(services.runner);
         EratePostgres.getCurrenciesRepository = () => new CurrenciesRepository(services.runner);

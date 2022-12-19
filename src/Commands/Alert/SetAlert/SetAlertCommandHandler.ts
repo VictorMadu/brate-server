@@ -10,11 +10,16 @@ import AlertRepository from '../../../Repositories/Erate/ErateAlertRepository';
 export default class SetAlertCommandHandler
     implements CommandHandler<SetAlertCommandRequest, SetAlertCommandResponse>
 {
-    constructor(private alertRepository: AlertRepository) {}
+    constructor(
+        private alertRepository: AlertRepository,
+        private authTokenManager: AuthTokenManager,
+    ) {}
 
     async handle(commandRequest: SetAlertCommandRequest): Promise<SetAlertCommandResponse> {
         const setAlertManager = new SetAlertManager(commandRequest);
 
+        console.log('commandRequest', commandRequest);
+        await setAlertManager.populateUserFromAuthManager(this.authTokenManager);
         await setAlertManager.updatePresistor(this.alertRepository);
         await setAlertManager.assertUpdateSuccessful();
 

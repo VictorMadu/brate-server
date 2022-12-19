@@ -1,7 +1,13 @@
 export interface DeleteAlertCommandRequest {
     authToken: string;
+    official?: {
+        rateAlertId: string;
+    };
+    bank?: {
+        rateAlertId: string;
+    };
     priceAlertIds: string[];
 }
 
 // TODO: Use the iterator and async iterator pattern
-export type DeleteAlertCommandResponse = void;
+export type DeleteAlertCommandResponse = { isSuccessful: boolean };

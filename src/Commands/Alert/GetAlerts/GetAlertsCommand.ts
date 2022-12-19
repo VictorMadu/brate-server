@@ -1,26 +1,27 @@
 export interface GetAlertCommandRequest {
-    onlyTriggered: boolean;
-    onlyUnTriggered: boolean;
-    market?: 'P' | 'B';
     pageCount: number;
     pageOffset: number;
     authToken: string;
-    pairs: { base: string; quota: string }[];
+    // TODO: Filter by pairs too
+    baseCurrencyId?: number[];
+    quotaCurrencyId?: number[];
     minCreatedAt?: Date;
     maxCreatedAt?: Date;
     minTriggeredAt?: Date;
     maxTriggeredAt?: Date;
+    unTriggeredOnly?: boolean;
+    triggeredOnly?: boolean;
+    rateAlertIds?: string[];
 }
 
 // TODO: Use the iterator and async iterator pattern
 export type GetAlertCommandResponse = {
-    priceAlertId: string;
-    userId: string;
-    marketType: 'P' | 'B';
-    base: string;
-    quota: string;
-    setRate: string;
-    targetRate: string;
+    rateAlertId: string;
+    baseCurrencyId: string;
+    quotaCurrencyId: string;
+    targetRate: number;
     createdAt: Date;
     triggeredAt: Date | null;
+    observedUserId: string;
+    observedUserName: string;
 }[];

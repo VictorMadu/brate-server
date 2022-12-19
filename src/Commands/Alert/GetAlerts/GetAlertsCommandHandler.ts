@@ -7,7 +7,7 @@ import NotificationRepository from '../../../Application/Common/Interfaces/Repos
 import CurrenciesRepository from '../../../Repositories/Erate/ErrateCurrencyPairRepository';
 import AlertRepository from '../../../Repositories/Erate/ErateAlertRepository';
 
-export default class GetAlertCommandHandler
+export default class GetAlertsCommandHandler
     implements CommandHandler<GetAlertCommandRequest, GetAlertCommandResponse>
 {
     constructor(private alertRepository: AlertRepository) {}

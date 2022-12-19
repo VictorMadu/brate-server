@@ -11,13 +11,17 @@ import MarketRepository from '../../../Repositories/Erate/ErateMarketRepository'
 export default class OpenBlackMarketCommandHandler
     implements CommandHandler<openBlackMarketCommandRequest, openBlackMarketCommandResponse>
 {
-    constructor(private marketRepository: MarketRepository) {}
+    constructor(
+        private marketRepository: MarketRepository,
+        private authTokenManager: AuthTokenManager,
+    ) {}
 
     async handle(
         commandRequest: openBlackMarketCommandRequest,
     ): Promise<openBlackMarketCommandResponse> {
         const openBlackMarketManager = new OpenMarketManager(commandRequest);
 
+        await openBlackMarketManager.populateUserFromAuthManager(this.authTokenManager);
         await openBlackMarketManager.updatePresistor(this.marketRepository);
         await openBlackMarketManager.assertUpdateSuccessful();
 

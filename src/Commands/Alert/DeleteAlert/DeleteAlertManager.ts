@@ -1,5 +1,5 @@
 import Currency from '../../../Application/Common/Interfaces/Entities/Currency';
-import PriceAlert from '../../../Application/Common/Interfaces/Entities/PriceAlert';
+
 import { User } from '../../../Application/Common/Interfaces/Entities/User';
 import NotificationRepository from '../../../Application/Common/Interfaces/Repositories/NotificationRepository';
 import AuthTokenManager from '../../../Application/Common/Interfaces/Services/AuthTokenManager';
@@ -9,6 +9,7 @@ import { DeleteAlertCommandRequest, DeleteAlertCommandResponse } from './DeleteA
 
 export default class DeleteAlertManager {
     private user = {} as Pick<User, 'userId'>;
+    private isSuccessful = false;
 
     constructor(private commandRequest: DeleteAlertCommandRequest) {}
 
@@ -18,16 +19,26 @@ export default class DeleteAlertManager {
     }
 
     async updatePresistor(alertRepository: AlertRepository) {
-        await Promise.all(
-            this.commandRequest.priceAlertIds.map((id) =>
-                alertRepository.deleteAlert({
-                    alert: { userId: this.user.userId, priceAlertId: id },
-                }),
-            ),
-        );
+        if (this.commandRequest.official) {
+            this.isSuccessful = await alertRepository.deleteOfficialAlert({
+                alert: {
+                    ...this.commandRequest.official,
+                    userId: this.user.userId,
+                },
+            });
+        } else if (this.commandRequest.bank) {
+            this.isSuccessful = await alertRepository.deleteOfficialAlert({
+                alert: {
+                    ...this.commandRequest.bank,
+                    userId: this.user.userId,
+                },
+            });
+        }
     }
 
     async assertUpdateSuccessful() {}
 
-    getResponse(): DeleteAlertCommandResponse {}
+    getResponse(): DeleteAlertCommandResponse {
+        return { isSuccessful: this.isSuccessful };
+    }
 }

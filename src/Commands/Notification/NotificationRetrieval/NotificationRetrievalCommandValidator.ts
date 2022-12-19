@@ -8,7 +8,7 @@ import _ from 'lodash';
 import { CommandHandler } from '../../../Application/Common/Interfaces/Command/CommandHandler';
 import Notification from '../../../Application/Common/Errors/Domain/Notification';
 
-export class NotificationModificationCommandValidator
+export class NotificationRetrievalCommandValidator
     implements
         CommandHandler<NotificationRetrievalCommandRequest, NotificationRetrievalCommandResponse>
 {

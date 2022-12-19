@@ -3,7 +3,7 @@ import { GetAlertCommandRequest, GetAlertCommandResponse } from './GetAlertsComm
 
 import { CommandHandler } from '../../../Application/Common/Interfaces/Command/CommandHandler';
 
-export class CurrencyModificationCommandValidator
+export class GetAlertsCommandValidator
     implements CommandHandler<GetAlertCommandRequest, GetAlertCommandResponse>
 {
     constructor(
