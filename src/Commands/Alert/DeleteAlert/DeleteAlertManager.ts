@@ -19,6 +19,7 @@ export default class DeleteAlertManager {
     }
 
     async updatePresistor(alertRepository: AlertRepository) {
+        console.log('updatePresistor', 'updatePresistor');
         if (this.commandRequest.official) {
             this.isSuccessful = await alertRepository.deleteOfficialAlert({
                 alert: {
@@ -27,7 +28,7 @@ export default class DeleteAlertManager {
                 },
             });
         } else if (this.commandRequest.bank) {
-            this.isSuccessful = await alertRepository.deleteOfficialAlert({
+            this.isSuccessful = await alertRepository.deleteRateBankAlert({
                 alert: {
                     ...this.commandRequest.bank,
                     userId: this.user.userId,

@@ -6,7 +6,6 @@ export interface DeleteAlertCommandRequest {
     bank?: {
         rateAlertId: string;
     };
-    priceAlertIds: string[];
 }
 
 // TODO: Use the iterator and async iterator pattern

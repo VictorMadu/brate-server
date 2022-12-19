@@ -10,11 +10,15 @@ import AlertRepository from '../../../Repositories/Erate/ErateAlertRepository';
 export default class DeleteAlertCommandHandler
     implements CommandHandler<DeleteAlertCommandRequest, DeleteAlertCommandResponse>
 {
-    constructor(private alertRepository: AlertRepository) {}
+    constructor(
+        private alertRepository: AlertRepository,
+        private authTokenManager: AuthTokenManager,
+    ) {}
 
     async handle(commandRequest: DeleteAlertCommandRequest): Promise<DeleteAlertCommandResponse> {
         const deleteAlertManager = new DeleteAlertManager(commandRequest);
 
+        await deleteAlertManager.populateUserFromAuthManager(this.authTokenManager);
         await deleteAlertManager.updatePresistor(this.alertRepository);
         await deleteAlertManager.assertUpdateSuccessful();
 

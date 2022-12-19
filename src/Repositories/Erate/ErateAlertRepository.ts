@@ -171,22 +171,26 @@ export default class AlertRepository {
     async deleteOfficialAlert(inData: {
         alert: { rateAlertId: string; userId: string };
     }): Promise<boolean> {
+        console.log('result ===== deleteOfficialAlert');
         const result = await this.runner.run(
             AlertRepository.DeleteOfficialAlertQuery,
             inData.alert.rateAlertId,
             inData.alert.userId,
         );
+        console.log('result deleteOfficialAlert', result);
         return !!result.rowCount;
     }
 
     async deleteRateBankAlert(inData: {
         alert: { rateAlertId: string; userId: string };
     }): Promise<boolean> {
+        console.log('result ===== deleteRateBankAlert');
         const result = await this.runner.run(
             AlertRepository.DeleteRateAlertQuery,
             inData.alert.rateAlertId,
             inData.alert.userId,
         );
+        console.log('result deleteRateBankAlert', result);
         return !!result.rowCount;
     }
 
@@ -330,7 +334,7 @@ export default class AlertRepository {
 
     private static DeleteOfficialAlertQuery = `
         WITH in_data AS (
-            SELECT * FROM (VALUES ((%L)::TEXT, (%L)::TEXT) 
+            SELECT * FROM (VALUES ((%L)::TEXT, (%L)::TEXT))
             AS t(
                 rate_alerts_id,
                 user_id
@@ -351,14 +355,14 @@ export default class AlertRepository {
                 ON 
                     official.${OfficialRateAlerts.rate_alerts_id} = alert.${RateAlerts.rate_alerts_id}
                 WHERE 
-                    official.${OfficialRateAlerts.rate_alerts_id} = (SELECT rate_alerts_id FROM in_data) AND
-                    official.${OfficialRateAlerts.user_id} = (SELECT user_id FROM in_data) 
+                    official.${OfficialRateAlerts.rate_alerts_id}::TEXT = (SELECT rate_alerts_id FROM in_data) AND
+                    official.${OfficialRateAlerts.user_id}::TEXT = (SELECT user_id FROM in_data) 
             )
     `;
 
     private static DeleteRateAlertQuery = `
         WITH in_data AS (
-            SELECT * FROM (VALUES ((%L)::TEXT, (%L)::TEXT) 
+            SELECT * FROM (VALUES ((%L)::TEXT, (%L)::TEXT) )
             AS t(
                 rate_alerts_id,
                 user_id
@@ -379,8 +383,8 @@ export default class AlertRepository {
                 ON 
                     bank.${BankRateAlerts.rate_alerts_id} = alert.${RateAlerts.rate_alerts_id}
                 WHERE 
-                    bank.${BankRateAlerts.rate_alerts_id} = (SELECT rate_alerts_id FROM in_data) AND
-                    bank.${BankRateAlerts.user_id} = (SELECT user_id FROM in_data) 
+                    bank.${BankRateAlerts.rate_alerts_id}::TEXT = (SELECT rate_alerts_id FROM in_data) AND
+                    bank.${BankRateAlerts.user_id}::TEXT = (SELECT user_id FROM in_data) 
             )
     `;
 
@@ -437,7 +441,7 @@ export default class AlertRepository {
                 ((SELECT max_triggered_at FROM in_data) IS NULL OR alert.${RateAlerts.triggered_at} <= (SELECT max_triggered_at FROM in_data)) AND
                 ((SELECT triggered_only FROM in_data) IS NULL OR alert.${RateAlerts.triggered_at} IS NOT NULL) AND
                 ((SELECT un_triggered_only FROM in_data) IS NULL OR alert.${RateAlerts.triggered_at} IS  NULL) AND
-                ${RateAlerts.deleted_at} IS NOT NULL
+                ${RateAlerts.deleted_at} IS NULL
         ),
 
         alerts_with_name AS (

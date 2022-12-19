@@ -47,6 +47,7 @@ import BankProfileRetrievalCommandHandler from './Commands/Profile/BankProfileRe
 import { BankProfileRetrievalCommandValidator } from './Commands/Profile/BankProfileRetrievalCommand/BankProfieRetrievalCommandValidator';
 import NotificationRetrievalCommandHandler from './Commands/Notification/NotificationRetrieval/NotificationRetrievalCommandHandler';
 import { NotificationRetrievalCommandValidator } from './Commands/Notification/NotificationRetrieval/NotificationRetrievalCommandValidator';
+import { DeleteAlertCommandRequest } from './Commands/Alert/DeleteAlert/DeleteAlertCommand';
 
 main();
 async function main() {
@@ -77,6 +78,7 @@ async function main() {
         console.log('query', req.query);
         console.log('params', req.params);
         console.log('body', req.body);
+        console.log('authorization', req.headers['authorization']);
         console.log('origin', req.headers['origin']);
         next();
     });
@@ -380,23 +382,40 @@ async function main() {
     );
 
     const deleteAlertCommand = new DeleteAlertCommandValidator(
-        new DeleteAlertCommandHandler(repositories.getAlertRepository()),
+        new DeleteAlertCommandHandler(repositories.getAlertRepository(), jwtAuthTokenManager),
     );
 
     app.delete(
         '/v1/alerts',
         handleError(async (req, res) => {
-            const result = await deleteAlertCommand.handle({
-                authToken: req.headers.authorization?.split(' ')[1] as string,
-                priceAlertIds: req.body.rateAlertIds as string[],
-            });
+            const type = req.body.type as 'official' | 'bank';
+
+            let inData = {} as DeleteAlertCommandRequest;
+
+            if (type === 'official') {
+                inData = {
+                    authToken: req.headers.authorization?.split(' ')[1] as string,
+                    official: {
+                        rateAlertId: req.body.rateAlertIds as string,
+                    },
+                };
+            } else {
+                inData = {
+                    authToken: req.headers.authorization?.split(' ')[1] as string,
+                    bank: {
+                        rateAlertId: req.body.rateAlertIds as string,
+                    },
+                };
+            }
+
+            const result = await deleteAlertCommand.handle(inData);
 
             res.status(200).send(result);
         }),
     );
 
     const getAlertsCommand = new GetAlertsCommandValidator(
-        new GetAlertsCommandHandler(repositories.getAlertRepository()),
+        new GetAlertsCommandHandler(repositories.getAlertRepository(), jwtAuthTokenManager),
     );
 
     app.get(
