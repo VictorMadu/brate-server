@@ -483,7 +483,7 @@ export default class AlertRepository {
         OFFSET (SELECT _offset FROM in_data)
         LIMIT (SELECT _limit FROM in_data)
     `;
-
+    // TODO: Make better, consider if price suddenly makes a sharp U-turn before being triggered
     private static ParallelPriceTriggerQuery = `
         WITH in_data AS  (
             SELECT 
@@ -492,6 +492,43 @@ export default class AlertRepository {
             (VALUES (%L))
             AS t(notification_type)
         ),
+       
+        pending_alerts AS (
+            SELECT 
+                officials.${OfficialRateAlerts.user_id} user_id,
+                alerts.${RateAlerts.rate_alerts_id} rate_alerts_id,
+                alerts.${RateAlerts.base} base,
+                alerts.${RateAlerts.quota} quota,
+                alerts.${RateAlerts.created_at} created_at,
+                alerts.${RateAlerts.triggered_at} triggered_at
+            FROM 
+                ${OfficialRateAlerts.$$NAME} officials
+            LEFT JOIN
+                ${RateAlerts.$$NAME} alerts
+            ON 
+                alerts.${RateAlerts.rate_alerts_id} = officials.${OfficialRateAlerts.rate_alerts_id}
+            WHERE
+                alerts.${RateAlerts.triggered_at} IS NULL AND
+                alets.${RateAlerts.deleted_at} IS NULL
+        ),
+
+        pending_price_rise AS (
+            SELECT
+                *
+            FROM 
+                pending_alerts
+            LEFT JOIN LATERAL (
+                SELECT 
+               
+                FROM 
+                    ${ParallelRates.$$NAME} base
+                LEFT JOIN
+                    ${ParallelRates.$$NAME} base
+            )
+
+
+        )
+
         lastest_rates AS (
             SELECT DISTINCT 
                 ON (${ParallelRates.currency_id})

@@ -18,11 +18,11 @@ export default class ErateNotificationRepository implements NotificationReposito
         const result: QueryResult<RawNotificationModel> = await this.runner.run(
             ErateNotificationRepository.GetQuery,
             inData.filter.userId,
-            inData.filter.type,
-            inData.filter.fromDateTime,
-            inData.filter.toDateTime,
-            inData.filter.offset,
-            inData.filter.size,
+            // inData.filter.type,
+            // inData.filter.fromDateTime,
+            // inData.filter.toDateTime,
+            // inData.filter.offset,
+            // inData.filter.size,
         );
 
         return _.map(result.rows, (row): Notification => {
@@ -41,6 +41,7 @@ export default class ErateNotificationRepository implements NotificationReposito
     }): Promise<Pick<Notification, 'notificationId'>> {
         return (await this._saveMany({ notification: [inData.notification] }))[0];
     }
+    
     async saveMany(inData: {
         notification: (Pick<Notification, 'msg' | 'userId'> & { type: NotificationType })[];
     }): Promise<Pick<Notification, 'notificationId'>[]> {
@@ -93,14 +94,17 @@ export default class ErateNotificationRepository implements NotificationReposito
         FROM
             ${Notifications.$$NAME}
         WHERE  
-            (${Notifications.type} IS NULL OR ${Notifications.user_id} = %)L AND
-            (${Notifications.type} IS NULL OR ${Notifications.type} = %L) AND
-            (${Notifications.created_at} IS NULL OR ${Notifications.created_at} >= %L) AND
-            (${Notifications.created_at} IS NULL OR ${Notifications.created_at} <= %L) AND
+            ${Notifications.user_id} = %L AND
             ${Notifications.deleted_at} IS NULL
-        OFFSET %L
-        LIMIT %L
+      
     `;
+    // (${Notifications.type} IS NULL OR ${Notifications.user_id} = %L) AND
+    // (${Notifications.type} IS NULL OR ${Notifications.type} = %L) AND
+    //         (${Notifications.created_at} IS NULL OR ${Notifications.created_at} >= %L) AND
+    //         (${Notifications.created_at} IS NULL OR ${Notifications.created_at} <= %L) AND
+
+    // OFFSET %L
+    // LIMIT %L
 
     private static SaveQuery = `
         INSERT INTO ${Notifications.$$NAME}

@@ -1,6 +1,16 @@
 import { QueryResult } from 'pg';
 import { Runner } from '../../Application/Common/Interfaces/Database/Runner';
-import { BlackRates, Currencies, ParallelRates, Users, Wallets } from '../../Database/Erate/Tables';
+import {
+    BankRateAlerts,
+    BlackRates,
+    Currencies,
+    Notifications,
+    OfficialRateAlerts,
+    ParallelRates,
+    RateAlerts,
+    Users,
+    Wallets,
+} from '../../Database/Erate/Tables';
 import * as TableDataType from '../../Database/Erate/TableDataTypes';
 import _ from 'lodash';
 import BlackRate from '../../Application/Common/Interfaces/Entities/BlackRate';
@@ -192,33 +202,254 @@ export default class MarketRepository {
     }
 
     private static UpdateParallelMarketQuery = `
-        INSERT INTO ${ParallelRates.$$NAME}
-        (
-            ${ParallelRates.currency_id},
-            ${ParallelRates.rate},
-            ${ParallelRates.created_at}
+        WITH new_rates AS (
+            INSERT INTO ${ParallelRates.$$NAME}
+            (
+                ${ParallelRates.currency_id},
+                ${ParallelRates.rate},
+                ${ParallelRates.created_at}
+            )
+            VALUES %L
+            RETURNING 
+                ${ParallelRates.currency_id} currency_id,
+                ${ParallelRates.rate} rate
+        ),
+        triggering_alerts AS (
+            SELECT 
+                pa.${RateAlerts.rate_alerts_id} rate_alerts_id,
+                pairs.curr_rate >= pairs.set_rate is_up
+            FROM 
+                ${OfficialRateAlerts.$$NAME} official
+            LEFT JOIN
+                ${RateAlerts.$$NAME} pa
+            ON 
+                pa.${RateAlerts.rate_alerts_id} = official.${OfficialRateAlerts.rate_alerts_id}
+            LEFT JOIN LATERAL (
+                SELECT 
+                    p.${ParallelRates.rate} set_rate,
+                    nr.rate curr_rate
+                FROM 
+                    ${ParallelRates.$$NAME} p
+                LEFT JOIN
+                    new_rates nr
+                ON 
+                    nr.currency_id = p.${ParallelRates.currency_id}
+                WHERE 
+                    p.${ParallelRates.currency_id} = pa.${RateAlerts.base} AND
+                    p.${ParallelRates.created_at} <= pa.${RateAlerts.created_at}
+                ORDER BY
+                    p.${ParallelRates.created_at} DESC
+                LIMIT 
+                    1
+            ) base_currency
+            ON TRUE
+            
+            LEFT JOIN LATERAL (
+                SELECT 
+                    p.${ParallelRates.rate} set_rate,
+                    nr.rate curr_rate
+                FROM 
+                    ${ParallelRates.$$NAME} p
+                LEFT JOIN
+                    new_rates nr
+                on 
+                    nr.currency_id = p.${ParallelRates.currency_id}
+                WHERE 
+                    p.${ParallelRates.currency_id} = pa.${RateAlerts.quota} AND
+                    p.${ParallelRates.created_at} <= pa.${RateAlerts.created_at}
+                ORDER BY
+                    p.${ParallelRates.created_at} DESC
+                LIMIT 
+                    1
+            )  quota_currency
+            ON TRUE
+
+            LEFT JOIN LATERAL (
+                SELECT 
+                    quota_currency.set_rate/(base_currency.set_rate) set_rate,
+                    (quota_currency.curr_rate)/(base_currency.curr_rate) curr_rate
+            ) pairs
+            ON TRUE
+            WHERE
+                ((
+                    pa.${RateAlerts.target_rate} >= pairs.set_rate AND
+                    pa.${RateAlerts.target_rate} <= pairs.curr_rate 
+                ) OR
+                (
+                    pa.${RateAlerts.target_rate} <= pairs.set_rate AND
+                    pa.${RateAlerts.target_rate} >= pairs.curr_rate 
+                )) AND pa.${RateAlerts.triggered_at} IS NULL 
+        ),
+
+        triggered_alerts AS (
+            UPDATE ${RateAlerts.$$NAME} pa
+            SET
+                ${RateAlerts.triggered_at} = NOW()
+            FROM 
+                triggering_alerts ta
+            LEFT JOIN 
+                ${OfficialRateAlerts.$$NAME} official
+            ON
+                ta.${RateAlerts.rate_alerts_id} = official.${OfficialRateAlerts.rate_alerts_id}
+            WHERE
+                pa.${RateAlerts.rate_alerts_id} = ta.rate_alerts_id
+            RETURNING 
+                pa.${RateAlerts.rate_alerts_id} rate_alerts_id,
+                official.${OfficialRateAlerts.user_id} user_id,
+                pa.${RateAlerts.base} base_currency_id,
+                pa.${RateAlerts.quota} quota_currency_id,
+                pa.${RateAlerts.target_rate} target_rate,
+                ta.is_up is_up
+        ),
+        pending_notification_details AS (
+            SELECT
+                ta.user_id user_id,
+                base_currency.${Currencies.iso} base_currency_abbrev,
+                quota_currency.${Currencies.iso} quota_currency_abbrev,
+                ta.is_up is_up,
+                ta.target_rate target_rate
+            FROM 
+                triggered_alerts ta
+            LEFT JOIN
+                ${Currencies.$$NAME} base_currency
+            ON
+                ta.base_currency_id = base_currency.${Currencies.currency_id}
+            LEFT JOIN
+                ${Currencies.$$NAME} quota_currency
+            ON
+                ta.quota_currency_id = quota_currency.${Currencies.currency_id}
         )
-        VALUES %L
+
+        INSERT INTO ${Notifications.$$NAME}
+        (
+            ${Notifications.user_id},
+            ${Notifications.type},
+            ${Notifications.msg}
+        )
+        SELECT
+            user_id,
+            'P',
+            base_currency_abbrev || '/' || quota_currency_abbrev || ' has reached ' || target_rate 
+        FROM 
+            pending_notification_details pnd
+       
     `;
 
     private static openBlackMarketQuery = `
-        INSERT INTO ${BlackRates.$$NAME}
-        (
-            ${BlackRates.user_id},
-            ${BlackRates.base},
-            ${BlackRates.quota},
-            ${BlackRates.rate},
-            ${BlackRates.created_at}
+        WITH new_rates AS (
+            INSERT INTO ${BlackRates.$$NAME}
+            (
+                ${BlackRates.user_id},
+                ${BlackRates.base},
+                ${BlackRates.quota},
+                ${BlackRates.rate},
+                ${BlackRates.created_at}
+            )
+            VALUES 
+            (
+                %L,
+                %L,
+                %L,
+                %L,
+                NOW()
+            )
+            RETURNING 
+                ${BlackRates.black_rates_id} black_rate_id,
+                ${BlackRates.user_id} user_id,
+                ${BlackRates.base} base,
+                ${BlackRates.quota} quota,
+                ${BlackRates.rate} rate,
+                ${BlackRates.created_at} created_at
+        ),
+        triggering_alerts AS (
+            SELECT 
+                pa.${RateAlerts.rate_alerts_id} rate_alerts_id,
+                nr.user_id user_id,
+                nr.rate >= sr.rate is_up
+            FROM 
+                ${RateAlerts.$$NAME} pa
+            INNER JOIN 
+                ${BankRateAlerts.$$NAME} br
+            ON
+                br.${BankRateAlerts.rate_alerts_id} = pa.${BankRateAlerts.rate_alerts_id}
+            INNER JOIN 
+                new_rates nr
+            ON 
+                nr.base = pa.${RateAlerts.base} AND
+                nr.quota = pa.${RateAlerts.quota} AND
+                nr.user_id = br.${BankRateAlerts.bank_user_id}
+            INNER JOIN LATERAL (
+                SELECT 
+                    b.${BlackRates.rate} rate
+                FROM 
+                    ${BlackRates.$$NAME} b
+                WHERE 
+                nr.base = b.${BlackRates.base} AND
+                nr.quota = b.${BlackRates.quota} AND
+                nr.user_id = b.${BlackRates.user_id} AND
+                b.${BlackRates.created_at} <= pa.${RateAlerts.created_at} 
+                ORDER BY
+                    b.${BlackRates.created_at} DESC
+                LIMIT 
+                    1
+            ) sr
+            ON TRUE
+            WHERE
+                ((
+                    pa.${RateAlerts.target_rate} <= nr.rate AND
+                    pa.${RateAlerts.target_rate} >= sr.rate 
+                ) OR
+                (
+                    pa.${RateAlerts.target_rate} >= nr.rate  AND
+                    pa.${RateAlerts.target_rate} <= sr.rate 
+                )) AND  pa.${RateAlerts.triggered_at} IS NULL
+        ),
+
+        triggered_alerts AS (
+            UPDATE ${RateAlerts.$$NAME} pa
+            SET
+                ${RateAlerts.triggered_at} = NOW()
+            WHERE 
+                pa.${RateAlerts.rate_alerts_id}  IN (SELECT rate_alerts_id FROM triggering_alerts)
+            RETURNING 
+                pa.${RateAlerts.rate_alerts_id} rate_alerts_id,
+                (SELECT user_id FROM triggering_alerts) user_id,
+                pa.${RateAlerts.base} base_currency_id,
+                pa.${RateAlerts.quota} quota_currency_id,
+                pa.${RateAlerts.target_rate} target_rate,
+                (SELECT is_up FROM triggering_alerts) is_up
+        ),
+        pending_notification_details AS (
+            SELECT
+                ta.user_id user_id,
+                base_currency.${Currencies.iso} base_currency_abbrev,
+                quota_currency.${Currencies.iso} quota_currency_abbrev,
+                ta.is_up is_up,
+                ta.target_rate target_rate
+            FROM 
+                triggered_alerts ta
+            LEFT JOIN
+                ${Currencies.$$NAME} base_currency
+            ON
+                ta.base_currency_id = base_currency.${Currencies.currency_id}
+            LEFT JOIN
+                ${Currencies.$$NAME} quota_currency
+            ON
+                ta.quota_currency_id = quota_currency.${Currencies.currency_id}
         )
-        VALUES 
+
+        INSERT INTO ${Notifications.$$NAME}
         (
-            %L,
-            %L,
-            %L,
-            %L,
-            NOW()
+            ${Notifications.user_id},
+            ${Notifications.type},
+            ${Notifications.msg}
         )
-        RETURNING ${BlackRates.black_rates_id} black_rate_id
+        SELECT
+            user_id,
+            'P',
+            base_currency_abbrev || '/' || quota_currency_abbrev || ' has reached ' || target_rate 
+        FROM 
+            pending_notification_details pnd
     `;
 
     private static closeBlackMarketQuery = `
@@ -562,6 +793,7 @@ export default class MarketRepository {
 
     // TODO: Use time as a determinant for generating new rate
     static UpdateParallelMarketWithSelfGeneratedDataQuery = `
+        WITH new_rates AS (
         INSERT INTO
             ${ParallelRates.$$NAME}
             (${ParallelRates.currency_id}, ${ParallelRates.rate})
@@ -573,7 +805,132 @@ export default class MarketRepository {
         FROM 
             ${ParallelRates.$$NAME}
             
-        WINDOW w AS (PARTITION BY ${ParallelRates.currency_id} ORDER BY ${ParallelRates.created_at} DESC) 
+        WINDOW 
+            w AS (PARTITION BY ${ParallelRates.currency_id} ORDER BY ${ParallelRates.created_at} DESC) 
+
+        RETURNING 
+            ${ParallelRates.currency_id} currency_id,
+            ${ParallelRates.rate} rate
+        ),
+        triggering_alerts AS (
+            SELECT 
+                pa.${RateAlerts.rate_alerts_id} rate_alerts_id,
+                pairs.curr_rate >= pairs.set_rate is_up
+            FROM 
+                ${OfficialRateAlerts.$$NAME} official
+            LEFT JOIN
+                ${RateAlerts.$$NAME} pa
+            ON 
+                pa.${RateAlerts.rate_alerts_id} = official.${OfficialRateAlerts.rate_alerts_id}
+            LEFT JOIN LATERAL (
+                SELECT 
+                    p.${ParallelRates.rate} set_rate,
+                    nr.rate curr_rate
+                FROM 
+                    ${ParallelRates.$$NAME} p
+                LEFT JOIN
+                    new_rates nr
+                ON 
+                    nr.currency_id = p.${ParallelRates.currency_id}
+                WHERE 
+                    p.${ParallelRates.currency_id} = pa.${RateAlerts.base} AND
+                    p.${ParallelRates.created_at} <= pa.${RateAlerts.created_at}
+                ORDER BY
+                    p.${ParallelRates.created_at} DESC
+                LIMIT 
+                    1
+            ) base_currency
+            ON TRUE
+            
+            LEFT JOIN LATERAL (
+                SELECT 
+                    p.${ParallelRates.rate} set_rate,
+                    nr.rate curr_rate
+                FROM 
+                    ${ParallelRates.$$NAME} p
+                LEFT JOIN
+                    new_rates nr
+                on 
+                    nr.currency_id = p.${ParallelRates.currency_id}
+                WHERE 
+                    p.${ParallelRates.currency_id} = pa.${RateAlerts.quota} AND
+                    p.${ParallelRates.created_at} <= pa.${RateAlerts.created_at}
+                ORDER BY
+                    p.${ParallelRates.created_at} DESC
+                LIMIT 
+                    1
+            )  quota_currency
+            ON TRUE
+
+            LEFT JOIN LATERAL (
+                SELECT 
+                    quota_currency.set_rate/(base_currency.set_rate) set_rate,
+                    (quota_currency.curr_rate)/(base_currency.curr_rate) curr_rate
+            ) pairs
+            ON TRUE
+            WHERE
+                ((
+                    pa.${RateAlerts.target_rate} >= pairs.set_rate AND
+                    pa.${RateAlerts.target_rate} <= pairs.curr_rate 
+                ) OR
+                (
+                    pa.${RateAlerts.target_rate} <= pairs.set_rate AND
+                    pa.${RateAlerts.target_rate} >= pairs.curr_rate 
+                )) AND
+                ${RateAlerts.triggered_at} IS NULL
+        ),
+
+        triggered_alerts AS (
+            UPDATE ${RateAlerts.$$NAME} pa
+            SET
+                ${RateAlerts.triggered_at} = NOW()
+            FROM 
+                triggering_alerts ta
+            LEFT JOIN 
+                ${OfficialRateAlerts.$$NAME} official
+            ON
+                ta.${RateAlerts.rate_alerts_id} = official.${OfficialRateAlerts.rate_alerts_id}
+            WHERE
+                pa.${RateAlerts.rate_alerts_id} = ta.rate_alerts_id
+            RETURNING 
+                pa.${RateAlerts.rate_alerts_id} rate_alerts_id,
+                official.${OfficialRateAlerts.user_id} user_id,
+                pa.${RateAlerts.base} base_currency_id,
+                pa.${RateAlerts.quota} quota_currency_id,
+                pa.${RateAlerts.target_rate} target_rate,
+                ta.is_up is_up
+        ),
+        pending_notification_details AS (
+            SELECT
+                ta.user_id user_id,
+                base_currency.${Currencies.iso} base_currency_abbrev,
+                quota_currency.${Currencies.iso} quota_currency_abbrev,
+                ta.is_up is_up,
+                ta.target_rate target_rate
+            FROM 
+                triggered_alerts ta
+            LEFT JOIN
+                ${Currencies.$$NAME} base_currency
+            ON
+                ta.base_currency_id = base_currency.${Currencies.currency_id}
+            LEFT JOIN
+                ${Currencies.$$NAME} quota_currency
+            ON
+                ta.quota_currency_id = quota_currency.${Currencies.currency_id}
+        )
+
+        INSERT INTO ${Notifications.$$NAME}
+        (
+            ${Notifications.user_id},
+            ${Notifications.type},
+            ${Notifications.msg}
+        )
+        SELECT
+            user_id,
+            'P',
+            base_currency_abbrev || '/' || quota_currency_abbrev || ' has reached ' || target_rate 
+        FROM 
+            pending_notification_details pnd
     `;
 
     static HasAllCurrenciesRateQuery = `

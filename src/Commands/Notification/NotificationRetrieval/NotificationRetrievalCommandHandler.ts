@@ -12,13 +12,17 @@ export default class NotificationRetrievalCommandHandler
     implements
         CommandHandler<NotificationRetrievalCommandRequest, NotificationRetrievalCommandResponse>
 {
-    constructor(private notificationRepository: NotificationRepository) {}
+    constructor(
+        private notificationRepository: NotificationRepository,
+        private authTokenManager: AuthTokenManager,
+    ) {}
 
     async handle(
         commandRequest: NotificationRetrievalCommandRequest,
     ): Promise<NotificationRetrievalCommandResponse> {
         const notificationRetrievalManager = new NotificationRetrievalManager(commandRequest);
 
+        await notificationRetrievalManager.populateUserFromAuthManager(this.authTokenManager);
         await notificationRetrievalManager.populateFromPresistor(this.notificationRepository);
         return notificationRetrievalManager.getResponse();
     }

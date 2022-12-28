@@ -28,19 +28,19 @@ export class NotificationRetrievalCommandValidator
     private validate(
         commandRequest: Request<NotificationRetrievalCommandRequest>,
     ): NotificationRetrievalCommandRequest {
-        if (!_.isString(commandRequest.authToken)) {
-            throw new Notification.InvalidToken();
-        } else if (!_.isDate(commandRequest.dateTimeFrom)) {
-            throw new Notification.InvalidDateTimeFrom();
-        } else if (!_.isDate(commandRequest.dateTimeTo)) {
-            throw new Notification.InvalidDateTimeTo();
-        } else if (!_.isDate(commandRequest.type)) {
-            throw new Notification.InvalidType();
-        } else if (!_.isDate(commandRequest.pageOffset)) {
-            throw new Notification.InvalidPageOffset();
-        } else if (!_.isDate(commandRequest.pageCount)) {
-            throw new Notification.InvalidPageCount();
-        }
+        // if (!_.isString(commandRequest.authToken)) {
+        //     throw new Notification.InvalidToken();
+        // } else if (!_.isDate(commandRequest.dateTimeFrom)) {
+        //     throw new Notification.InvalidDateTimeFrom();
+        // } else if (!_.isDate(commandRequest.dateTimeTo)) {
+        //     throw new Notification.InvalidDateTimeTo();
+        // } else if (!_.isDate(commandRequest.type)) {
+        //     throw new Notification.InvalidType();
+        // } else if (!_.isDate(commandRequest.pageOffset)) {
+        //     throw new Notification.InvalidPageOffset();
+        // } else if (!_.isDate(commandRequest.pageCount)) {
+        //     throw new Notification.InvalidPageCount();
+        // }
         return commandRequest as NotificationRetrievalCommandRequest;
     }
 }

@@ -89,11 +89,11 @@ export default class UpdateParallelMarketManager {
 
     // TODO: Reorganize and handle well
     async triggerReachedAlerts(alertRepository: AlertRepository) {
-        await Promise.all([
-            alertRepository.triggerReachedParallelMarket({
-                type: NotificationType.ALERT_TRIGGERED,
-            }),
-        ]);
+        // await Promise.all([
+        //     alertRepository.triggerReachedParallelMarket({
+        //         type: NotificationType.ALERT_TRIGGERED,
+        //     }),
+        // ]);
     }
 
     async selfGenerateRates(marketRepository: MarketRepository) {

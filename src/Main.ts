@@ -466,7 +466,10 @@ async function main() {
     );
 
     const notificationRetrievalCommand = new NotificationRetrievalCommandValidator(
-        new NotificationRetrievalCommandHandler(repositories.getNotificationRepository()),
+        new NotificationRetrievalCommandHandler(
+            repositories.getNotificationRepository(),
+            jwtAuthTokenManager,
+        ),
     );
 
     app.get(
@@ -539,7 +542,7 @@ async function main() {
         process.exit(0);
     }
 
-    // parallelRateUpdateTask.start();
+    parallelRateUpdateTask.start();
 
     app.listen(config.get('port'), () => {
         console.log('Server listening to PORT', config.get('port'));
